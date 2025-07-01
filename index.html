@@ -413,12 +413,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (char === ' ' || char === '　') {
     charEl.textContent = '●';
-    charEl.classList.add('hidden');
+    charEl.classList.add('placeholder-dot');  // hiddenではなくplaceholder-dotを使用
 } else if (ignoreRegex.test(char)) {
     // 2. もし文字が無視リストの記号なら、何もしない（そのまま表示）
 } else if (Math.random() < this.state.maskRate) {
     // 3. 上記以外で、確率に当たった文字を虫食いにする
-    charEl.textContent = '●';  // ここも追加
     charEl.classList.add('hidden');
 }
                         wordEl.appendChild(charEl);
