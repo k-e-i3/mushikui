@@ -405,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             const ignoreRegex = /[「」（）【】、。・，()\/]/;
 
                             // ★★ v15.1: 3つの条件分岐に整理 ★★
-                            if (char === '　') {
+　　　　　　　　　　　if (char === ' ' || char === '　') {
                                 // 1. もし文字がスペースなら、⚫︎に置き換えて色付け用のクラスを付与
                                 charEl.textContent = '⚫';
                                 charEl.classList.add('placeholder-dot');
