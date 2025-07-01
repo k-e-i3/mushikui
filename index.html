@@ -192,6 +192,10 @@
             margin-top: 10px;
             text-align: right;
         }
+        .placeholder-dot {
+            color: #8A9A5B; /* 灰色がかった緑 (セージグリーン) */
+            opacity: 0.7;   /* 少し透明度を持たせて背景と馴染ませる */
+        }
     </style>
 </head>
 <body>
@@ -393,16 +397,26 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (index > lastIndex) { parent.insertBefore(document.createTextNode(text.substring(lastIndex, index)), textNode); }
                     const wordEl = document.createElement('span');
                     wordEl.className = 'word';
-                    for (const char of wordStr) {
-                        const charEl = document.createElement('span');
-                        charEl.className = 'char';
-                        charEl.textContent = char;
-                        const ignoreRegex = /[「」（）【】、。・，()\/]/;
-                        if (!ignoreRegex.test(char) && Math.random() < this.state.maskRate) {
-                            charEl.classList.add('hidden');
+　　　　　　　　　　　for (const char of wordStr) {
+                            const charEl = document.createElement('span');
+                            charEl.className = 'char';
+                            charEl.textContent = char;
+
+                            const ignoreRegex = /[「」（）【】、。・，()\/]/;
+
+                            // ★★ v15.1: 3つの条件分岐に整理 ★★
+                            if (char === ' ') {
+                                // 1. もし文字がスペースなら、⚫︎に置き換えて色付け用のクラスを付与
+                                charEl.textContent = '⚫';
+                                charEl.classList.add('placeholder-dot');
+                            } else if (ignoreRegex.test(char)) {
+                                // 2. もし文字が無視リストの記号なら、何もしない（そのまま表示）
+                            } else if (Math.random() < this.state.maskRate) {
+                                // 3. 上記以外で、確率に当たった文字を虫食いにする
+                                charEl.classList.add('hidden');
+                            }
+                            wordEl.appendChild(charEl);
                         }
-                        wordEl.appendChild(charEl);
-                    }
                     parent.insertBefore(wordEl, textNode);
                     this.state.words.push(wordEl);
                     lastIndex = index + wordStr.length;
