@@ -411,14 +411,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
                         const ignoreRegex = /[「」（）【】、。・，()\/]/;
 
-                        if (char === ' ' || char === '　') {
-                            charEl.textContent = '●';
-                            charEl.classList.add('placeholder-dot');
-                        } else if (ignoreRegex.test(char)) {
-                            // 無視リストの記号は何もしない
-                        } else if (Math.random() < this.state.maskRate) {
-                            charEl.classList.add('hidden');
-                        }
+if (char === ' ' || char === '　') {
+    charEl.textContent = '●';
+    charEl.classList.add('hidden');
+} else if (ignoreRegex.test(char)) {
+    // 2. もし文字が無視リストの記号なら、何もしない（そのまま表示）
+} else if (Math.random() < this.state.maskRate) {
+    // 3. 上記以外で、確率に当たった文字を虫食いにする
+    charEl.textContent = '●';  // ここも追加
+    charEl.classList.add('hidden');
+}
                         wordEl.appendChild(charEl);
                     }
                     parent.insertBefore(wordEl, textNode);
