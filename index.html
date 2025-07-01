@@ -412,7 +412,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         const ignoreRegex = /[「」（）【】、。・，()\/]/;
 
                         if (char === ' ' || char === '　') {
-                            charEl.textContent = '⚫';
+                            charEl.textContent = '●';
                             charEl.classList.add('placeholder-dot');
                         } else if (ignoreRegex.test(char)) {
                             // 無視リストの記号は何もしない
