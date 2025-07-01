@@ -413,11 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 if (char === ' ' || char === '　') {
     charEl.textContent = '●';
-    charEl.classList.add('placeholder-dot');  // hiddenではなくplaceholder-dotを使用
+    charEl.classList.add('placeholder-dot');
+    charEl.dataset.originalChar = char;  // 元の文字を保存
 } else if (ignoreRegex.test(char)) {
     // 2. もし文字が無視リストの記号なら、何もしない（そのまま表示）
 } else if (Math.random() < this.state.maskRate) {
     // 3. 上記以外で、確率に当たった文字を虫食いにする
+    charEl.dataset.originalChar = char;  // 元の文字を保存
+    charEl.textContent = '●';
     charEl.classList.add('hidden');
 }
                         wordEl.appendChild(charEl);
@@ -485,8 +488,16 @@ if (char === ' ' || char === '　') {
 
         updateInfo() { if (this.state.currentWordIndex < 0 || this.state.words.length === 0) { this.els.progressInfo.textContent = '0'; this.els.wordInfo.textContent = '-'; return; } const progress = Math.round(((this.state.currentWordIndex + 1) / this.state.words.length) * 100); this.els.progressInfo.textContent = `${progress}`; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (currentWordEl) { this.els.wordInfo.textContent = currentWordEl.textContent.trim(); } }
         
-        revealWord(wordEl) { if(wordEl) { wordEl.querySelectorAll('.char.hidden').forEach(char => { char.classList.add('revealed'); }); } }
-        
+revealWord(wordEl) { 
+    if(wordEl) { 
+        wordEl.querySelectorAll('.char.hidden, .char.placeholder-dot').forEach(char => { 
+            if (char.dataset.originalChar) {
+                char.textContent = char.dataset.originalChar;
+            }
+            char.classList.add('revealed'); 
+        }); 
+    } 
+}
         revealAllWords() { this.state.words.forEach(wordEl => this.revealWord(wordEl)); }
         
         handleKeydown(e) { if (e.target.tagName === 'TEXTAREA') return; if (e.code === 'Space') { e.preventDefault(); this.togglePlay(); } else if (e.code === 'KeyR') { e.preventDefault(); this.reset(); } }
