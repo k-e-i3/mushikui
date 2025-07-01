@@ -6,12 +6,12 @@
     <title>テレプロンプター型暗記支援アプリ (v14)</title>
     <style>
 :root {
-            --bg-color: #1a1a1a;
-            --text-color: #e0e0e0;
-            --highlight-color: #ffff00;
+            --bg-color: #ffffff; /* 背景色を白に変更 */
+            --text-color: #000000; /* 文字色を黒に変更 */
+            --highlight-color: #FFF1AB; /* ハイライト色を淡い黄色に変更 */
             --guide-color: #00ff00;
-            --panel-bg-color: #2a2a2a;
-            --border-color: #444;
+            --panel-bg-color: #f0f0f0; /* コントロールパネルの背景色を薄いグレーに変更 */
+            --border-color: #ccc;
         }
         @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
         html {
@@ -59,7 +59,7 @@
             cursor: pointer;
         }
         button, select {
-            background-color: #3a3a3a;
+            background-color: #ddd;
             color: var(--text-color);
             border: 1px solid var(--border-color);
             padding: 8px 12px;
@@ -70,13 +70,13 @@
             transition: background-color 0.2s;
         }
         button:hover, select:hover {
-            background-color: #555;
+            background-color: #eee;
         }
         #play-pause-btn {
             min-width: 80px;
             text-align: center;
         }
-        input[type="checkbox"] {
+        input {
             cursor: pointer;
         }
         #info-panel {
@@ -93,7 +93,7 @@
         }
         #info-panel p:first-child { flex-shrink: 0; }
         #info-panel p:last-child { min-width: 0; }
-        
+
         main {
             flex-grow: 1;
             position: relative;
@@ -135,10 +135,10 @@
         }
         .word.highlight {
             background-color: var(--highlight-color);
-            color: var(--bg-color);
+            color: var(--text-color);
             border-radius: 3px;
             padding: 0 0.2em;
-            box-shadow: 0 0 8px var(--highlight-color);
+            /* box-shadow: 0 0 8px var(--highlight-color); */ /* フワッと光る影を削除 */
         }
         .char.hidden {
             color: transparent;
@@ -147,7 +147,7 @@
         }
         .word.highlight .char.hidden {
             color: transparent;
-            border-bottom-color: var(--bg-color);
+            border-bottom-color: var(--highlight-color);
         }
         .char.revealed {
             color: var(--text-color);
