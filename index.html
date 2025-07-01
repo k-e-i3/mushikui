@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>テレプロンプター型暗記支援アプリ (v14)</title>
+    <meta name="robots" content="noindex">
+    <title>テレプロンプター型暗記支援アプリ</title>
     <style>
 :root {
             --bg-color: #ededed; /* 背景色を白に変更 */
@@ -51,7 +52,7 @@
         .control-group {
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 5px;
         }
         .control-group label {
             font-size: 14px;
@@ -76,7 +77,7 @@
             min-width: 80px;
             text-align: center;
         }
-        input {
+        input[type="range"] {
             cursor: pointer;
         }
         #info-panel {
@@ -88,148 +89,101 @@
         #info-panel p {
             margin: 0;
             white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-        }
-        #info-panel p:first-child { flex-shrink: 0; }
-        #info-panel p:last-child { min-width: 0; }
-
-        main {
-            flex-grow: 1;
-            position: relative;
-            overflow: hidden;
-        }
-        #guide-line {
-            position: absolute;
-            top: 30%;
-            left: 0;
-            width: 100%;
-            height: 2px;
-            background-color: var(--guide-color);
-            z-index: 10;
-            pointer-events: none;
-        }
-        #text-container {
-            width: 100%;
-            height: 100%;
-            overflow: hidden;
-            cursor: grab;
-        }
-        #text-container:active {
-            cursor: grabbing;
-        }
-        #text-content {
-            padding: 50vh 20px;
-            font-size: 24px;
-            line-height: 1.8;
-            transition: transform 0.3s ease-in-out;
-            transform: translateY(0px);
-            box-sizing: border-box;
-        }
-        .word {
-            display: inline-block;
-        }
-        .char {
-            display: inline-block;
-            transition: color 0.3s, background-color 0.3s, border-bottom-color 0.3s;
-        }
-        .word.highlight {
-            background-color: var(--highlight-color);
-            color: var(--text-color);
-            border-radius: 3px;
-            padding: 0 0.2em;
-            /* box-shadow: 0 0 8px var(--highlight-color); */ /* フワッと光る影を削除 */
-        }
-        .char.hidden {
-            color: transparent;
-            border-bottom: 1px solid var(--text-color);
-            cursor: pointer;
-        }
-        .word.highlight .char.hidden {
-            color: transparent;
-            border-bottom-color: var(--highlight-color);
-        }
-        .char.revealed {
-            color: var(--text-color);
-            border-bottom-color: transparent !important;
-        }
-        #modal-overlay {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background-color: rgba(0,0,0,0.7);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 100;
-        }
-        #modal-content {
-            background-color: var(--bg-color);
-            padding: 20px;
-            border-radius: 10px;
-            width: 80%;
-            max-width: 700px;
-            height: 70%;
-            display: flex;
-            flex-direction: column;
-        }
-        #modal-textarea {
-            flex-grow: 1;
-            width: 100%;
-            box-sizing: border-box;
-            background-color: #2c2c2c;
-            color: var(--text-color);
-            border: 1px solid var(--border-color);
-            font-size: 16px;
-            padding: 10px;
-            resize: none;
-            -webkit-user-select: text;
-            user-select: text;
-        }
-        #modal-buttons {
-            margin-top: 10px;
-            text-align: right;
-        } 
     </style>
 </head>
 <body>
     <header class="control-panel">
         <div class="controls-left">
-            <div class="control-group"><button id="play-pause-btn">再生</button><button id="reset-btn">リセット</button><button id="edit-btn">テキストを編集</button></div>
-            <div class="control-group"><input type="checkbox" id="speech-toggle"><label for="speech-toggle">読み上げ</label><select id="voice-select" title="音声を選択"></select></div>
-            <div class="control-group"><label for="font-size-slider">文字:<span id="font-size-value">24</span>px</label><input type="range" id="font-size-slider" min="16" max="40" value="24" style="width: 80px;"></div>
-            <div class="control-group"><label for="speed-slider">速度:<span id="speed-value">2.3</span>s</label><input type="range" id="speed-slider" min="0.2" max="3" step="0.1" value="2.3" style="width: 80px;"></div>
-            <div class="control-group"><label for="mask-rate-slider">虫食い:<span id="mask-rate-value">24</span>%</label><input type="range" id="mask-rate-slider" min="0" max="80" value="24" style="width: 80px;"></div>
+            <div class="control-group">
+                <button id="play-pause-btn">再生</button>
+                <button id="reset-btn">リセット</button>
+            </div>
+            <div class="control-group">
+                <label for="text-select">テキスト選択:</label>
+                <select id="text-select"></select>
+            </div>
+            <div class="control-group">
+                <input type="checkbox" id="speech-toggle">
+                <label for="speech-toggle">読み上げ</label>
+                <select id="voice-select" title="音声を選択"></select>
+            </div>
+            <div class="control-group">
+                <label for="font-size-slider">文字:<span id="font-size-value">24</span>px</label>
+                <input type="range" id="font-size-slider" min="16" max="40" value="24" style="width: 80px;">
+            </div>
+            <div class="control-group">
+                <label for="speed-slider">速度:<span id="speed-value">1.5</span>s</label>
+                <input type="range" id="speed-slider" min="0.2" max="3" step="0.1" value="1.5" style="width: 80px;">
+            </div>
+            <div class="control-group">
+                <label for="mask-rate-slider">虫食い:<span id="mask-rate-value">30</span>%</label>
+                <input type="range" id="mask-rate-slider" min="0" max="80" value="30" style="width: 80px;">
+            </div>
         </div>
-        <div class="controls-right"><div id="info-panel"><p>進捗: <span id="progress-info">0</span>%</p><p>現在単語: <span id="word-info">-</span></p></div></div>
+        <div class="controls-right">
+            <div id="info-panel">
+                <p>進捗: <span id="progress-info">0</span>%</p>
+                <p>現在単語: <span id="word-info">-</span></p>
+            </div>
+        </div>
     </header>
     <main>
         <div id="guide-line"></div>
-        <div id="text-container"><div id="text-content"></div></div>
-    </main>
-    <div id="modal-overlay">
-        <div id="modal-content">
-            <h3>テキストを編集</h3><textarea id="modal-textarea"></textarea>
-            <div id="modal-buttons"><button id="modal-save-btn">保存</button><button id="modal-cancel-btn">キャンセル</button></div>
+        <div id="text-container">
+            <div id="text-content">
+                <p class="loading-message">テキストリストを読み込んでいます...</p>
+            </div>
         </div>
-    </div>
+    </main>
+    
     <script>
 document.addEventListener('DOMContentLoaded', () => {
     class AnkiTeleprompter {
         constructor() {
             this.els = {
-                speechToggle: document.getElementById('speech-toggle'), voiceSelect: document.getElementById('voice-select'), textContent: document.getElementById('text-content'), textContainer: document.getElementById('text-container'), guideLine: document.getElementById('guide-line'), playPauseBtn: document.getElementById('play-pause-btn'), resetBtn: document.getElementById('reset-btn'), editBtn: document.getElementById('edit-btn'), fontSizeSlider: document.getElementById('font-size-slider'), speedSlider: document.getElementById('speed-slider'), maskRateSlider: document.getElementById('mask-rate-slider'), fontSizeValue: document.getElementById('font-size-value'), speedValue: document.getElementById('speed-value'), maskRateValue: document.getElementById('mask-rate-value'), progressInfo: document.getElementById('progress-info'), wordInfo: document.getElementById('word-info'), modalOverlay: document.getElementById('modal-overlay'), modalTextarea: document.getElementById('modal-textarea'), modalSaveBtn: document.getElementById('modal-save-btn'), modalCancelBtn: document.getElementById('modal-cancel-btn'),
+                // v16で更新された要素リスト
+                speechToggle: document.getElementById('speech-toggle'),
+                voiceSelect: document.getElementById('voice-select'),
+                textSelect: document.getElementById('text-select'), // テキスト選択ドロップダウン
+                textContent: document.getElementById('text-content'),
+                textContainer: document.getElementById('text-container'),
+                guideLine: document.getElementById('guide-line'),
+                playPauseBtn: document.getElementById('play-pause-btn'),
+                resetBtn: document.getElementById('reset-btn'),
+                fontSizeSlider: document.getElementById('font-size-slider'),
+                speedSlider: document.getElementById('speed-slider'),
+                maskRateSlider: document.getElementById('mask-rate-slider'),
+                fontSizeValue: document.getElementById('font-size-value'),
+                speedValue: document.getElementById('speed-value'),
+                maskRateValue: document.getElementById('mask-rate-value'),
+                progressInfo: document.getElementById('progress-info'),
+                wordInfo: document.getElementById('word-info'),
             };
             this.state = {
-                isPlaying: false, currentWordIndex: -1, words: [], voices: [], timer: null, voiceLoadRetries: 0,
-                originalText: `II-1-1：汚泥焼却時の NOx/N2O 排出削減対策\n1) 概要\n下水汚泥焼却において、NOx（窒素酸化物）は大気汚染防止、N2O（亜酸化窒素）は地球温暖化対策の観点から、その排出削減が重要な課題である。\n特にN2OはCO2の約300倍の温室効果を持ち、対策が急務である。\nこれら物質は発生メカニズムや最適な削減条件が異なるため燃焼条件の最適化や排ガス処理技術を組み合わせた総合的なアプローチが不可欠となる。`,
+                // v16で更新されたstate
+                isPlaying: false,
+                currentWordIndex: -1,
+                words: [],
+                voices: [],
+                timer: null,
+                voiceLoadRetries: 0,
+                textFiles: [], // 読み込んだテキストファイル名のリスト
+                originalText: '下の「テキスト選択」から学習したい文章を選んでください。', // 初期テキスト
+                fontSize: 24,
+                highlightSpeed: 1500,
+                maskRate: 0.3,
             };
             this.dragState = {
                 isDragging: false, isTap: true, startX: 0, startY: 0, startTranslateY: 0,
             };
-            this.loadSettings();
+            
+            // ★★ v16: GitHubからデータを読み込むための設定 ★★
+            this.githubInfo = {
+                username: 'k-e-i3',
+                repo: 'mushikui'
+            };
+
+            this.loadSettings(); // スライダー等の設定を読み込む
             this.init();
             this.initSpeech();
         }
@@ -237,116 +191,79 @@ document.addEventListener('DOMContentLoaded', () => {
         init() {
             this.bindEvents();
             this.updateUIFromState();
-            this.renderText();
+            this.loadTextList(); // ★★ v16: テキストリストの読み込みを開始
         }
         
-        initSpeech() {
-            if ('speechSynthesis' in window) {
-                const populate = () => this.populateVoiceList();
-                speechSynthesis.onvoiceschanged = populate;
-                this.populateVoiceList();
-            } else {
-                const speechControl = this.els.speechToggle.parentElement;
-                if(speechControl) speechControl.style.display = 'none';
-            }
-        }
-        
-        populateVoiceList() {
-            const voices = speechSynthesis.getVoices();
-            if (voices.length === 0 && this.state.voiceLoadRetries < 15) {
-                this.state.voiceLoadRetries++;
-                setTimeout(() => this.populateVoiceList(), 200);
-                return;
-            }
-            this.state.voices = voices.filter(voice => voice.lang === 'ja-JP');
-            this.els.voiceSelect.innerHTML = '';
-            if (this.state.voices.length > 0) {
-                this.state.voices.forEach(voice => {
+        // ★★ v16: GitHubからテキストリスト(index.json)を読み込む ★★
+        async loadTextList() {
+            const url = `https://${this.githubInfo.username}.github.io/${this.githubInfo.repo}/index.json`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error('目次ファイル(index.json)の読み込みに失敗しました。');
+                }
+                const fileList = await response.json();
+                this.state.textFiles = fileList;
+
+                // ドロップダウンメニューを作成
+                this.els.textSelect.innerHTML = '';
+                this.state.textFiles.forEach(fileName => {
                     const option = document.createElement('option');
-                    option.textContent = `${voice.name}`;
-                    option.setAttribute('data-name', voice.name);
-                    this.els.voiceSelect.appendChild(option);
+                    option.value = fileName;
+                    option.textContent = fileName.replace('.txt', ''); // .txtを除去して表示
+                    this.els.textSelect.appendChild(option);
                 });
-                this.els.voiceSelect.disabled = false; this.els.speechToggle.disabled = false;
-            } else {
-                const option = document.createElement('option');
-                option.textContent = '日本語音声なし';
-                this.els.voiceSelect.appendChild(option);
-                this.els.voiceSelect.disabled = true; this.els.speechToggle.disabled = true;
+
+                // 最初のテキストを自動で読み込む
+                if (this.state.textFiles.length > 0) {
+                    this.loadTextContent(this.state.textFiles[0]);
+                }
+            } catch (error) {
+                this.els.textContent.innerHTML = `<p class="loading-message">${error.message}</p>`;
             }
         }
+
+        // ★★ v16: 選択されたテキストファイルをGitHubから読み込む ★★
+        async loadTextContent(fileName) {
+            const url = `https://${this.githubInfo.username}.github.io/${this.githubInfo.repo}/${fileName}`;
+            this.els.textContent.innerHTML = `<p class="loading-message">読み込み中: ${fileName}</p>`;
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    throw new Error(`ファイル(${fileName})の読み込みに失敗しました。`);
+                }
+                const text = await response.text();
+                this.state.originalText = text;
+                this.renderText();
+            } catch (error) {
+                 this.els.textContent.innerHTML = `<p class="loading-message">${error.message}</p>`;
+            }
+        }
+
+        initSpeech() { /* ... v15から変更なし ... */ }
+        populateVoiceList() { /* ... v15から変更なし ... */ }
 
         bindEvents() {
             this.els.playPauseBtn.addEventListener('click', () => this.togglePlay());
             this.els.resetBtn.addEventListener('click', () => this.reset());
+            this.els.textSelect.addEventListener('change', (e) => this.loadTextContent(e.target.value)); // ★★ v16: テキスト選択イベント
             this.els.fontSizeSlider.addEventListener('input', () => this.updateSettings());
             this.els.speedSlider.addEventListener('input', () => this.updateSettings());
-            this.els.maskRateSlider.addEventListener('input', () => this.updateSettings(true));
+            this.els.maskRateSlider.addEventListener('input', () => this.updateSettings(true)); // 虫食い率はテキスト再描画が必要
             window.addEventListener('resize', () => this.handleResize());
             document.addEventListener('keydown', (e) => this.handleKeydown(e));
-            this.els.editBtn.addEventListener('click', () => this.openModal());
-            this.els.modalOverlay.addEventListener('click', (e) => { if (e.target === this.els.modalOverlay) this.closeModal(); });
-            this.els.modalCancelBtn.addEventListener('click', () => this.closeModal());
-            this.els.modalSaveBtn.addEventListener('click', () => this.saveTextFromModal());
-
+            
             this.els.textContainer.addEventListener('mousedown', (e) => this.onDragStart(e));
-            this.els.textContainer.addEventListener('touchstart', (e) => this.onDragStart(e));
+            this.els.textContainer.addEventListener('touchstart', (e) => this.onDragStart(e), { passive: false });
             window.addEventListener('mousemove', (e) => this.onDragMove(e));
-            window.addEventListener('touchmove', (e) => this.onDragMove(e));
+            window.addEventListener('touchmove', (e) => this.onDragMove(e), { passive: false });
             window.addEventListener('mouseup', (e) => this.onDragEnd(e));
             window.addEventListener('touchend', (e) => this.onDragEnd(e));
         }
 
-        onDragStart(e) {
-            this.pause();
-            this.dragState.isDragging = true;
-            this.dragState.isTap = true; // ★★ v14: まずはタップと仮定
-            this.dragState.startX = (e.type === 'touchstart') ? e.touches[0].clientX : e.clientX;
-            this.dragState.startY = (e.type === 'touchstart') ? e.touches[0].clientY : e.clientY;
-            const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform);
-            this.dragState.startTranslateY = currentTransform.m42;
-            this.els.textContent.style.transition = 'none';
-        }
-
-        onDragMove(e) {
-            if (!this.dragState.isDragging) return;
-
-            const currentX = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
-            const currentY = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY;
-            const deltaX = Math.abs(currentX - this.dragState.startX);
-            const deltaY = Math.abs(currentY - this.dragState.startY);
-
-            // ★★ v14: 少しでも動いたらドラッグと判断する ★★
-            if (deltaX > 5 || deltaY > 5) {
-                this.dragState.isTap = false;
-            }
-
-            if (!this.dragState.isTap) {
-                const moveY = currentY - this.dragState.startY;
-                const newTranslateY = this.dragState.startTranslateY + moveY;
-                this.els.textContent.style.transform = `translateY(${newTranslateY}px)`;
-            }
-        }
-
-            onDragEnd(e) {
-                if (!this.dragState.isDragging) return;
-
-                // ★★ v15: iPhoneでのリロード問題を解決する修正 ★★
-                if (this.dragState.isTap) {
-                    // touchendイベントでは、e.targetが不安定なことがあるため、
-                    // 最後に触れていた座標から要素を特定する、より安全な方法に変更します。
-                    const touch = e.changedTouches ? e.changedTouches[0] : e;
-                    if (touch) {
-                        const target = document.elementFromPoint(touch.clientX, touch.clientY);
-                        if (target && target.classList.contains('char') && target.classList.contains('hidden')) {
-                            target.classList.add('revealed');
-                        }
-                    }
-                }
-
-                this.dragState.isDragging = false;
-                this.els.textContent.style.transition = 'transform 0.3s ease-in-out';
-            }
+        onDragStart(e) { /* ... v15から変更なし ... */ }
+        onDragMove(e) { /* ... v15から変更なし ... */ }
+        onDragEnd(e) { /* ... v15から変更なし ... */ }
         
         updateSettings(shouldRerender = false) {
             this.state.fontSize = parseFloat(this.els.fontSizeSlider.value);
@@ -361,135 +278,62 @@ document.addEventListener('DOMContentLoaded', () => {
             this.saveSettings();
         }
 
-        updateUIFromState() {
-            this.els.fontSizeSlider.value = this.state.fontSize;
-            this.els.fontSizeValue.textContent = this.state.fontSize;
-            document.getElementById('text-content').style.fontSize = `${this.state.fontSize}px`;
-            this.els.speedSlider.value = this.state.highlightSpeed / 1000;
-            this.els.speedValue.textContent = this.els.speedSlider.value;
-            this.els.maskRateSlider.value = this.state.maskRate * 100;
-            this.els.maskRateValue.textContent = Math.round(this.state.maskRate * 100);
-        }
-
-        renderText() {
-            this.pause();
-            this.els.textContent.innerHTML = '';
-            this.state.words = [];
-            const processedText = this.state.originalText.replace(/\n/g, '<br>');
-            this.els.textContent.innerHTML = processedText;
-            const walker = document.createTreeWalker(this.els.textContent, NodeFilter.SHOW_TEXT, null, false);
-            const textNodes = [];
-            let node;
-            while (node = walker.nextNode()) { textNodes.push(node); }
-            textNodes.forEach(textNode => {
-                const parent = textNode.parentNode;
-                const text = textNode.textContent;
-                const wordRegex = /\p{L}+|\p{N}+|[^\s\p{L}\p{N}]+/gu;
-                const matches = [...text.matchAll(wordRegex)];
-                let lastIndex = 0;
-                matches.forEach(match => {
-                    const wordStr = match[0];
-                    const index = match.index;
-                    if (index > lastIndex) { parent.insertBefore(document.createTextNode(text.substring(lastIndex, index)), textNode); }
-                    const wordEl = document.createElement('span');
-                    wordEl.className = 'word';
-                    for (const char of wordStr) {
-                        const charEl = document.createElement('span');
-                        charEl.className = 'char';
-                        charEl.textContent = char;
-                        const ignoreRegex = /[「」（）【】、。・，()\/]/;
-                        if (!ignoreRegex.test(char) && Math.random() < this.state.maskRate) {
-                            charEl.classList.add('hidden');
-                        }
-                        wordEl.appendChild(charEl);
-                    }
-                    parent.insertBefore(wordEl, textNode);
-                    this.state.words.push(wordEl);
-                    lastIndex = index + wordStr.length;
-                });
-                if (lastIndex < text.length) { parent.insertBefore(document.createTextNode(text.substring(lastIndex)), textNode); }
-                parent.removeChild(textNode);
-            });
-            this.reset();
-        }
-
-        play() { if (this.state.words.length === 0) return; this.state.isPlaying = true; this.els.playPauseBtn.textContent = '一時停止'; this.tick(); }
-        
-        pause() { this.state.isPlaying = false; this.els.playPauseBtn.textContent = '再生'; clearTimeout(this.state.timer); if ('speechSynthesis' in window) { speechSynthesis.cancel(); } }
-
-        togglePlay() { if (this.state.isPlaying) { this.pause(); } else { this.play(); } }
-
-        tick() {
-            if (!this.state.isPlaying) return;
-            if (this.state.currentWordIndex >= 0) {
-                const prevWordEl = this.state.words[this.state.currentWordIndex];
-                if(prevWordEl) {
-                    const guideLineTop = this.els.guideLine.getBoundingClientRect().top;
-                    const prevWordTop = prevWordEl.getBoundingClientRect().top;
-                    if (prevWordTop < guideLineTop) { this.revealWord(prevWordEl); }
-                }
-            }
-            this.highlightNextWord();
-            if (this.els.speechToggle.checked && this.state.words.length > 0 && 'speechSynthesis' in window) {
-                const currentWordEl = this.state.words[this.state.currentWordIndex];
-                if (currentWordEl) {
-                    const utterance = new SpeechSynthesisUtterance(currentWordEl.textContent);
-                    const selectedVoiceName = this.els.voiceSelect.selectedOptions[0]?.getAttribute('data-name');
-                    if (selectedVoiceName) {
-                        const selectedVoice = this.state.voices.find(voice => voice.name === selectedVoiceName);
-                        if (selectedVoice) { utterance.voice = selectedVoice; }
-                    }
-                    utterance.lang = 'ja-JP';
-                    speechSynthesis.speak(utterance);
-                }
-            }
-            if (this.state.currentWordIndex < this.state.words.length - 1) { this.state.timer = setTimeout(() => this.tick(), this.state.highlightSpeed); } else { this.pause(); this.revealAllWords(); }
-        }
-
-        highlightNextWord() {
-            if (this.state.currentWordIndex >= 0) {
-                const prevWordEl = this.state.words[this.state.currentWordIndex];
-                if (prevWordEl) { prevWordEl.classList.remove('highlight'); this.revealWord(prevWordEl); }
-            }
-            this.state.currentWordIndex++;
-            if (this.state.currentWordIndex >= this.state.words.length) { this.state.currentWordIndex = this.state.words.length - 1; this.pause(); return; }
-            const currentWordEl = this.state.words[this.state.currentWordIndex];
-            if(currentWordEl) { currentWordEl.classList.add('highlight'); this.scrollToCurrentWord(); this.updateInfo(); }
-        }
-
-        scrollToCurrentWord() { if (this.state.currentWordIndex < 0) return; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (!currentWordEl) return; const guideLineTop = this.els.guideLine.getBoundingClientRect().top; const wordTop = currentWordEl.getBoundingClientRect().top; const scrollOffset = wordTop - guideLineTop; const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform); const newTranslateY = currentTransform.m42 - scrollOffset; this.els.textContent.style.transform = `translateY(${newTranslateY}px)`; }
-        
-        reset() { this.pause(); this.state.currentWordIndex = -1; this.els.textContent.style.transition = 'none'; this.els.textContent.style.transform = 'translateY(0px)'; setTimeout(() => { this.els.textContent.style.transition = 'transform 0.3s ease-in-out'; }, 50); this.state.words.forEach(wordEl => { wordEl.classList.remove('highlight'); wordEl.querySelectorAll('.char.revealed').forEach(char => { char.classList.remove('revealed'); }); }); this.updateInfo(); }
-
-        updateInfo() { if (this.state.currentWordIndex < 0 || this.state.words.length === 0) { this.els.progressInfo.textContent = '0'; this.els.wordInfo.textContent = '-'; return; } const progress = Math.round(((this.state.currentWordIndex + 1) / this.state.words.length) * 100); this.els.progressInfo.textContent = `${progress}`; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (currentWordEl) { this.els.wordInfo.textContent = currentWordEl.textContent.trim(); } }
-        
-        revealWord(wordEl) { if(wordEl) { wordEl.querySelectorAll('.char.hidden').forEach(char => { char.classList.add('revealed'); }); } }
-        
-        revealAllWords() { this.state.words.forEach(wordEl => this.revealWord(wordEl)); }
-        
-        handleKeydown(e) { if (e.target.tagName === 'TEXTAREA') return; if (e.code === 'Space') { e.preventDefault(); this.togglePlay(); } else if (e.code === 'KeyR') { e.preventDefault(); this.reset(); } }
-        
+        updateUIFromState() { /* ... v15から変更なし ... */ }
+        renderText() { /* ... v15から変更なし ... */ }
+        play() { /* ... v15から変更なし ... */ }
+        pause() { /* ... v15から変更なし ... */ }
+        togglePlay() { /* ... v15から変更なし ... */ }
+        tick() { /* ... v15から変更なし ... */ }
+        highlightNextWord() { /* ... v15から変更なし ... */ }
+        scrollToCurrentWord() { /* ... v15から変更なし ... */ }
+        reset() { /* ... v15から変更なし ... */ }
+        updateInfo() { /* ... v15から変更なし ... */ }
+        revealWord(wordEl) { /* ... v15から変更なし ... */ }
+        revealAllWords() { /* ... v15から変更なし ... */ }
+        handleKeydown(e) { /* ... v15から変更なし ... */ }
         handleResize() { this.renderText(); }
-        
-        openModal() { this.pause(); this.els.modalTextarea.value = this.state.originalText; this.els.modalOverlay.style.display = 'flex'; }
-        
-        closeModal() { this.els.modalOverlay.style.display = 'none'; }
-        
-        saveTextFromModal() { this.state.originalText = this.els.modalTextarea.value; this.closeModal(); this.renderText(); this.saveSettings(); }
 
-        saveSettings() { const settings = { originalText: this.state.originalText, fontSize: this.state.fontSize, highlightSpeed: this.state.highlightSpeed, maskRate: this.state.maskRate, }; localStorage.setItem('ankiTeleprompterSettings', JSON.stringify(settings)); }
-
+        // ★★ v16: テキスト本体は保存せず、設定のみ保存・読み込み ★★
+        saveSettings() {
+            const settings = {
+                fontSize: this.state.fontSize,
+                highlightSpeed: this.state.highlightSpeed,
+                maskRate: this.state.maskRate,
+            };
+            localStorage.setItem('ankiTeleprompterSettings_v16', JSON.stringify(settings));
+        }
         loadSettings() {
-            const savedSettings = localStorage.getItem('ankiTeleprompterSettings');
+            const savedSettings = localStorage.getItem('ankiTeleprompterSettings_v16');
             if (savedSettings) {
                 const settings = JSON.parse(savedSettings);
-                this.state.originalText = settings.originalText || this.state.originalText;
                 this.state.fontSize = settings.fontSize || 24;
-                this.state.highlightSpeed = settings.highlightSpeed || 2300;
-                this.state.maskRate = (typeof settings.maskRate === 'number') ? settings.maskRate : 0.24;
+                this.state.highlightSpeed = settings.highlightSpeed || 1500;
+                this.state.maskRate = (typeof settings.maskRate === 'number') ? settings.maskRate : 0.3;
             }
         }
     }
+
+    // 変更がない関数群をここに展開します
+    const proto = AnkiTeleprompter.prototype;
+    proto.initSpeech = function() { if ('speechSynthesis' in window) { const populate = () => this.populateVoiceList(); speechSynthesis.onvoiceschanged = populate; this.populateVoiceList(); } else { const speechControl = this.els.speechToggle.parentElement; if(speechControl) speechControl.style.display = 'none'; } };
+    proto.populateVoiceList = function() { const voices = speechSynthesis.getVoices(); if (voices.length === 0 && this.state.voiceLoadRetries < 15) { this.state.voiceLoadRetries++; setTimeout(() => this.populateVoiceList(), 200); return; } this.state.voices = voices.filter(voice => voice.lang === 'ja-JP'); this.els.voiceSelect.innerHTML = ''; if (this.state.voices.length > 0) { this.state.voices.forEach(voice => { const option = document.createElement('option'); option.textContent = `${voice.name}`; option.setAttribute('data-name', voice.name); this.els.voiceSelect.appendChild(option); }); this.els.voiceSelect.disabled = false; this.els.speechToggle.disabled = false; } else { const option = document.createElement('option'); option.textContent = '日本語音声なし'; this.els.voiceSelect.appendChild(option); this.els.voiceSelect.disabled = true; this.els.speechToggle.disabled = true; } };
+    proto.onDragStart = function(e) { if (e.type === 'touchstart') e.preventDefault(); this.pause(); this.dragState.isDragging = true; this.dragState.isTap = true; this.dragState.startX = (e.type === 'touchstart') ? e.touches[0].clientX : e.clientX; this.dragState.startY = (e.type === 'touchstart') ? e.touches[0].clientY : e.clientY; const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform); this.dragState.startTranslateY = currentTransform.m42; this.els.textContent.style.transition = 'none'; };
+    proto.onDragMove = function(e) { if (!this.dragState.isDragging) return; const currentX = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX; const currentY = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY; if (Math.abs(currentX - this.dragState.startX) > 5 || Math.abs(currentY - this.dragState.startY) > 5) { this.dragState.isTap = false; } if (!this.dragState.isTap) { const moveY = currentY - this.dragState.startY; const newTranslateY = this.dragState.startTranslateY + moveY; this.els.textContent.style.transform = `translateY(${newTranslateY}px)`; } };
+    proto.onDragEnd = function(e) { if (!this.dragState.isDragging) return; if (this.dragState.isTap) { const touch = e.changedTouches ? e.changedTouches[0] : e; if (touch) { const target = document.elementFromPoint(touch.clientX, touch.clientY); if (target && target.classList.contains('char') && target.classList.contains('hidden')) { target.classList.add('revealed'); } } } this.dragState.isDragging = false; this.els.textContent.style.transition = 'transform 0.3s ease-in-out'; };
+    proto.updateUIFromState = function() { this.els.fontSizeSlider.value = this.state.fontSize; this.els.fontSizeValue.textContent = this.state.fontSize; document.getElementById('text-content').style.fontSize = `${this.state.fontSize}px`; this.els.speedSlider.value = this.state.highlightSpeed / 1000; this.els.speedValue.textContent = this.els.speedSlider.value; this.els.maskRateSlider.value = this.state.maskRate * 100; this.els.maskRateValue.textContent = Math.round(this.state.maskRate * 100); };
+    proto.renderText = function() { this.pause(); this.els.textContent.innerHTML = ''; this.state.words = []; const processedText = this.state.originalText.replace(/\n/g, '<br>'); this.els.textContent.innerHTML = processedText; const walker = document.createTreeWalker(this.els.textContent, NodeFilter.SHOW_TEXT, null, false); const textNodes = []; let node; while (node = walker.nextNode()) { textNodes.push(node); } textNodes.forEach(textNode => { const parent = textNode.parentNode; const text = textNode.textContent; const wordRegex = /\p{L}+|\p{N}+|[^\s\p{L}\p{N}]+/gu; const matches = [...text.matchAll(wordRegex)]; let lastIndex = 0; matches.forEach(match => { const wordStr = match[0]; const index = match.index; if (index > lastIndex) { parent.insertBefore(document.createTextNode(text.substring(lastIndex, index)), textNode); } const wordEl = document.createElement('span'); wordEl.className = 'word'; for (const char of wordStr) { const charEl = document.createElement('span'); charEl.className = 'char'; charEl.textContent = char; const ignoreRegex = /[「」（）【】、。・，()\/]/; if (/\s/.test(char)) { charEl.textContent = '⚫'; charEl.classList.add('placeholder-dot'); } else if (ignoreRegex.test(char)) {} else if (Math.random() < this.state.maskRate) { charEl.classList.add('hidden'); charEl.addEventListener('click', (e) => { e.stopPropagation(); charEl.classList.add('revealed'); }, { once: true }); charEl.addEventListener('touchend', (e) => { e.preventDefault(); e.stopPropagation(); if(!charEl.classList.contains('revealed')) charEl.classList.add('revealed');}, { once: true }); } wordEl.appendChild(charEl); } parent.insertBefore(wordEl, textNode); this.state.words.push(wordEl); lastIndex = index + wordStr.length; }); if (lastIndex < text.length) { parent.insertBefore(document.createTextNode(text.substring(lastIndex)), textNode); } parent.removeChild(textNode); }); this.reset(); };
+    proto.play = function() { if (this.state.words.length === 0) return; this.state.isPlaying = true; this.els.playPauseBtn.textContent = '一時停止'; this.tick(); };
+    proto.pause = function() { this.state.isPlaying = false; this.els.playPauseBtn.textContent = '再生'; clearTimeout(this.state.timer); if ('speechSynthesis' in window) { speechSynthesis.cancel(); } };
+    proto.togglePlay = function() { if (this.state.isPlaying) { this.pause(); } else { this.play(); } };
+    proto.tick = function() { if (!this.state.isPlaying) return; if (this.state.currentWordIndex >= 0) { const prevWordEl = this.state.words[this.state.currentWordIndex]; if(prevWordEl) { const guideLineTop = this.els.guideLine.getBoundingClientRect().top; const prevWordTop = prevWordEl.getBoundingClientRect().top; if (prevWordTop < guideLineTop) { this.revealWord(prevWordEl); } } } this.highlightNextWord(); if (this.els.speechToggle.checked && this.state.words.length > 0 && 'speechSynthesis' in window) { const currentWordEl = this.state.words[this.state.currentWordIndex]; if (currentWordEl) { const utterance = new SpeechSynthesisUtterance(currentWordEl.textContent); const selectedVoiceName = this.els.voiceSelect.selectedOptions[0]?.getAttribute('data-name'); if (selectedVoiceName) { const selectedVoice = this.state.voices.find(voice => voice.name === selectedVoiceName); if (selectedVoice) { utterance.voice = selectedVoice; } } utterance.lang = 'ja-JP'; speechSynthesis.speak(utterance); } } if (this.state.currentWordIndex < this.state.words.length - 1) { this.state.timer = setTimeout(() => this.tick(), this.state.highlightSpeed); } else { this.pause(); this.revealAllWords(); } };
+    proto.highlightNextWord = function() { if (this.state.currentWordIndex >= 0) { const prevWordEl = this.state.words[this.state.currentWordIndex]; if (prevWordEl) { prevWordEl.classList.remove('highlight'); this.revealWord(prevWordEl); } } this.state.currentWordIndex++; if (this.state.currentWordIndex >= this.state.words.length) { this.state.currentWordIndex = this.state.words.length - 1; this.pause(); return; } const currentWordEl = this.state.words[this.state.currentWordIndex]; if(currentWordEl) { currentWordEl.classList.add('highlight'); this.scrollToCurrentWord(); this.updateInfo(); } };
+    proto.scrollToCurrentWord = function() { if (this.state.currentWordIndex < 0) return; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (!currentWordEl) return; const guideLineTop = this.els.guideLine.getBoundingClientRect().top; const wordTop = currentWordEl.getBoundingClientRect().top; const scrollOffset = wordTop - guideLineTop; const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform); const newTranslateY = currentTransform.m42 - scrollOffset; this.els.textContent.style.transform = `translateY(${newTranslateY}px)`; };
+    proto.reset = function() { this.pause(); this.state.currentWordIndex = -1; this.els.textContent.style.transition = 'none'; this.els.textContent.style.transform = 'translateY(0px)'; setTimeout(() => { this.els.textContent.style.transition = 'transform 0.3s ease-in-out'; }, 50); this.state.words.forEach(wordEl => { wordEl.classList.remove('highlight'); wordEl.querySelectorAll('.char.revealed').forEach(char => { char.classList.remove('revealed'); }); }); this.updateInfo(); };
+    proto.updateInfo = function() { if (this.state.currentWordIndex < 0 || this.state.words.length === 0) { this.els.progressInfo.textContent = '0'; this.els.wordInfo.textContent = '-'; return; } const progress = Math.round(((this.state.currentWordIndex + 1) / this.state.words.length) * 100); this.els.progressInfo.textContent = `${progress}`; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (currentWordEl) { this.els.wordInfo.textContent = currentWordEl.textContent.trim(); } };
+    proto.revealWord = function(wordEl) { if(wordEl) { wordEl.querySelectorAll('.char.hidden').forEach(char => { char.classList.add('revealed'); }); } };
+    proto.revealAllWords = function() { this.state.words.forEach(wordEl => this.revealWord(wordEl)); };
+    proto.handleKeydown = function(e) { if (e.target.tagName === 'TEXTAREA') return; if (e.code === 'Space') { e.preventDefault(); this.togglePlay(); } else if (e.code === 'KeyR') { e.preventDefault(); this.reset(); } };
+    
     new AnkiTeleprompter();
 });
     </script>
