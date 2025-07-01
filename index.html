@@ -381,47 +381,54 @@ document.addEventListener('DOMContentLoaded', () => {
             this.state.words = [];
             const processedText = this.state.originalText.replace(/\n/g, '<br>');
             this.els.textContent.innerHTML = processedText;
+
             const walker = document.createTreeWalker(this.els.textContent, NodeFilter.SHOW_TEXT, null, false);
             const textNodes = [];
             let node;
-            while (node = walker.nextNode()) { textNodes.push(node); }
+            while (node = walker.nextNode()) {
+                textNodes.push(node);
+            }
+
             textNodes.forEach(textNode => {
                 const parent = textNode.parentNode;
                 const text = textNode.textContent;
                 const wordRegex = /\p{L}+|\p{N}+|[^\s\p{L}\p{N}]+/gu;
                 const matches = [...text.matchAll(wordRegex)];
                 let lastIndex = 0;
+
                 matches.forEach(match => {
                     const wordStr = match[0];
                     const index = match.index;
-                    if (index > lastIndex) { parent.insertBefore(document.createTextNode(text.substring(lastIndex, index)), textNode); }
+                    if (index > lastIndex) {
+                        parent.insertBefore(document.createTextNode(text.substring(lastIndex, index)), textNode);
+                    }
                     const wordEl = document.createElement('span');
                     wordEl.className = 'word';
-　　　　　　　　　　　for (const char of wordStr) {
-                            const charEl = document.createElement('span');
-                            charEl.className = 'char';
-                            charEl.textContent = char;
+                    for (const char of wordStr) {
+                        const charEl = document.createElement('span');
+                        charEl.className = 'char';
+                        charEl.textContent = char;
 
-                            const ignoreRegex = /[「」（）【】、。・，()\/]/;
+                        const ignoreRegex = /[「」（）【】、。・，()\/]/;
 
-                            // ★★ v15.1: 3つの条件分岐に整理 ★★
-　　　　　　　　　　　if (char === ' ' || char === '　') {
-                                // 1. もし文字がスペースなら、⚫︎に置き換えて色付け用のクラスを付与
-                                charEl.textContent = '⚫';
-                                charEl.classList.add('placeholder-dot');
-                            } else if (ignoreRegex.test(char)) {
-                                // 2. もし文字が無視リストの記号なら、何もしない（そのまま表示）
-                            } else if (Math.random() < this.state.maskRate) {
-                                // 3. 上記以外で、確率に当たった文字を虫食いにする
-                                charEl.classList.add('hidden');
-                            }
-                            wordEl.appendChild(charEl);
+                        if (char === ' ' || char === '　') {
+                            charEl.textContent = '⚫';
+                            charEl.classList.add('placeholder-dot');
+                        } else if (ignoreRegex.test(char)) {
+                            // 無視リストの記号は何もしない
+                        } else if (Math.random() < this.state.maskRate) {
+                            charEl.classList.add('hidden');
                         }
+                        wordEl.appendChild(charEl);
+                    }
                     parent.insertBefore(wordEl, textNode);
                     this.state.words.push(wordEl);
                     lastIndex = index + wordStr.length;
                 });
-                if (lastIndex < text.length) { parent.insertBefore(document.createTextNode(text.substring(lastIndex)), textNode); }
+
+                if (lastIndex < text.length) {
+                    parent.insertBefore(document.createTextNode(text.substring(lastIndex)), textNode);
+                }
                 parent.removeChild(textNode);
             });
             this.reset();
