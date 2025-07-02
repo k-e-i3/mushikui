@@ -6,7 +6,164 @@
     <meta name="robots" content="noindex">
     <title>テレプロンプター型暗記支援アプリ (v17)</title>
     <style>
-        /* ここにパート②のCSSを貼り付けます */
+
+        :root {
+            --bg-color: #ededed;       /* 背景色 */
+            --text-color: #222222;     /* 文字色 */
+            --highlight-color: #FFF1AB; /* ハイライト色 */
+            --guide-color: #335555;     /* ガイドラインの色 */
+            --panel-bg-color: #f0f0f0; /* コントロールパネルの背景色 */
+            --border-color: #ccc;      /* 境界線の色 */
+        }
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap');
+        html {
+            touch-action: none;
+        }
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+        .control-panel {
+            background-color: var(--panel-bg-color);
+            padding: 10px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .controls-left, .controls-right {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .control-group label {
+            font-size: 14px;
+            white-space: nowrap;
+            cursor: pointer;
+        }
+        button, select {
+            background-color: #ddd;
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 8px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 14px;
+            transition: background-color 0.2s;
+        }
+        button:hover, select:hover {
+            background-color: #e8e8e8;
+        }
+        #play-pause-btn {
+            min-width: 80px;
+            text-align: center;
+        }
+        input[type="range"] {
+            cursor: pointer;
+        }
+        #info-panel {
+            font-size: 12px;
+            display: flex;
+            gap: 15px;
+            min-width: 220px;
+        }
+        #info-panel p {
+            margin: 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        #info-panel p:first-child { flex-shrink: 0; }
+        #info-panel p:last-child { min-width: 0; }
+        main {
+            flex-grow: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        #guide-line {
+            position: absolute;
+            top: 30%;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background-color: var(--guide-color);
+            z-index: 10;
+            pointer-events: none;
+        }
+        #text-container {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            cursor: grab;
+        }
+        #text-container:active {
+            cursor: grabbing;
+        }
+        #text-content {
+            padding: 50vh 20px;
+            font-size: 24px;
+            line-height: 1.8;
+            transition: transform 0.3s ease-in-out;
+            transform: translateY(0px);
+            box-sizing: border-box;
+        }
+        .loading-message {
+            text-align: center;
+            padding-top: 20vh;
+            opacity: 0.7;
+        }
+        .word {
+            display: inline-block;
+        }
+        .char {
+            display: inline-block;
+            transition: color 0.3s, background-color 0.3s, border-bottom-color 0.3s;
+        }
+        .word.highlight {
+            background-color: var(--highlight-color);
+            color: var(--text-color);
+            border-radius: 3px;
+            padding: 0 0.2em;
+        }
+        .char.hidden {
+            color: transparent;
+            border-bottom: 1px solid var(--text-color);
+            cursor: pointer;
+        }
+        .word.highlight .char.hidden {
+            color: transparent;
+            border-bottom-color: var(--text-color);
+        }
+        .char.revealed {
+            color: var(--text-color);
+            border-bottom-color: transparent !important;
+        }
+        .placeholder-dot {
+            color: #8A9A5B;
+            opacity: 0.7;
+        }
+
+        
     </style>
 </head>
 <body>
@@ -55,7 +212,354 @@
     </main>
     
     <script>
-        // ここにパート③のJavaScriptを貼り付けます
+document.addEventListener('DOMContentLoaded', () => {
+    class AnkiTeleprompter {
+        constructor() {
+            this.els = {
+                speechToggle: document.getElementById('speech-toggle'),
+                voiceSelect: document.getElementById('voice-select'),
+                textSelect: document.getElementById('text-select'),
+                textContent: document.getElementById('text-content'),
+                textContainer: document.getElementById('text-container'),
+                guideLine: document.getElementById('guide-line'),
+                playPauseBtn: document.getElementById('play-pause-btn'),
+                resetBtn: document.getElementById('reset-btn'),
+                fontSizeSlider: document.getElementById('font-size-slider'),
+                speedSlider: document.getElementById('speed-slider'),
+                maskRateSlider: document.getElementById('mask-rate-slider'),
+                fontSizeValue: document.getElementById('font-size-value'),
+                speedValue: document.getElementById('speed-value'),
+                maskRateValue: document.getElementById('mask-rate-value'),
+                progressInfo: document.getElementById('progress-info'),
+                wordInfo: document.getElementById('word-info'),
+            };
+            this.state = {
+                isPlaying: false,
+                currentWordIndex: -1,
+                words: [],
+                voices: [],
+                timer: null,
+                voiceLoadRetries: 0,
+                textFiles: [],
+                originalText: '下の「テキスト選択」から学習したい文章を選んでください。',
+                fontSize: 24,
+                highlightSpeed: 1500,
+                maskRate: 0.3,
+            };
+            this.dragState = {
+                isDragging: false,
+                isTap: true,
+                startX: 0,
+                startY: 0,
+                startTranslateY: 0,
+            };
+            this.githubInfo = {
+                username: 'k-e-i3',
+                repo: 'mushikui'
+            };
+
+            this.loadSettings();
+            this.init();
+            this.initSpeech();
+        }
+
+        init() {
+            this.bindEvents();
+            this.updateUIFromState();
+            this.loadTextList();
+        }
+        
+        async loadTextList() {
+            const url = `https://${this.githubInfo.username}.github.io/${this.githubInfo.repo}/index.json?t=${new Date().getTime()}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error('目次ファイル(index.json)が見つかりません。');
+                
+                const fileList = await response.json();
+                this.state.textFiles = fileList;
+
+                this.els.textSelect.innerHTML = '';
+                this.state.textFiles.forEach(fileName => {
+                    const option = document.createElement('option');
+                    option.value = fileName;
+                    option.textContent = fileName.replace('.txt', '');
+                    this.els.textSelect.appendChild(option);
+                });
+
+                if (this.state.textFiles.length > 0) {
+                    this.loadTextContent(this.state.textFiles[0]);
+                } else {
+                    this.els.textContent.innerHTML = `<p class="loading-message">index.jsonにテキストファイルが登録されていません。</p>`;
+                }
+            } catch (error) {
+                this.els.textContent.innerHTML = `<p class="loading-message">${error.message}<br>GitHub上でindex.jsonファイルが正しく設置されているかご確認ください。</p>`;
+            }
+        }
+
+        async loadTextContent(fileName) {
+            if (!fileName) return;
+            const url = `https://${this.githubInfo.username}.github.io/${this.githubInfo.repo}/${fileName}?t=${new Date().getTime()}`;
+            this.els.textContent.innerHTML = `<p class="loading-message">読み込み中: ${fileName}</p>`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`ファイル（${fileName}）の読み込みに失敗しました。`);
+                
+                const text = await response.text();
+                this.state.originalText = text;
+                this.renderText();
+            } catch (error) {
+                 this.els.textContent.innerHTML = `<p class="loading-message">${error.message}</p>`;
+            }
+        }
+        
+        initSpeech() {
+            if ('speechSynthesis' in window) {
+                const populate = () => this.populateVoiceList();
+                speechSynthesis.onvoiceschanged = populate;
+                this.populateVoiceList();
+            } else {
+                const speechControl = this.els.speechToggle.parentElement;
+                if(speechControl) speechControl.style.display = 'none';
+            }
+        }
+        
+        populateVoiceList() {
+            const voices = speechSynthesis.getVoices();
+            if (voices.length === 0 && this.state.voiceLoadRetries < 15) {
+                this.state.voiceLoadRetries++;
+                setTimeout(() => this.populateVoiceList(), 200);
+                return;
+            }
+            this.state.voices = voices.filter(voice => voice.lang === 'ja-JP');
+            this.els.voiceSelect.innerHTML = '';
+            if (this.state.voices.length > 0) {
+                this.state.voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.textContent = `${voice.name}`;
+                    option.setAttribute('data-name', voice.name);
+                    this.els.voiceSelect.appendChild(option);
+                });
+                this.els.voiceSelect.disabled = false; this.els.speechToggle.disabled = false;
+            } else {
+                const option = document.createElement('option');
+                option.textContent = '日本語音声なし';
+                this.els.voiceSelect.appendChild(option);
+                this.els.voiceSelect.disabled = true; this.els.speechToggle.disabled = true;
+            }
+        }
+
+        bindEvents() {
+            this.els.playPauseBtn.addEventListener('click', () => this.togglePlay());
+            this.els.resetBtn.addEventListener('click', () => this.reset());
+            this.els.textSelect.addEventListener('change', (e) => this.loadTextContent(e.target.value));
+            this.els.fontSizeSlider.addEventListener('input', () => this.updateSettings());
+            this.els.speedSlider.addEventListener('input', () => this.updateSettings());
+            this.els.maskRateSlider.addEventListener('input', () => this.updateSettings(true));
+            window.addEventListener('resize', () => this.handleResize());
+            document.addEventListener('keydown', (e) => this.handleKeydown(e));
+            
+            this.els.textContainer.addEventListener('mousedown', (e) => this.onDragStart(e));
+            this.els.textContainer.addEventListener('touchstart', (e) => this.onDragStart(e), { passive: false });
+            window.addEventListener('mousemove', (e) => this.onDragMove(e));
+            window.addEventListener('touchmove', (e) => this.onDragMove(e), { passive: false });
+            window.addEventListener('mouseup', (e) => this.onDragEnd(e));
+            window.addEventListener('touchend', (e) => this.onDragEnd(e));
+        }
+
+        onDragStart(e) {
+            if (e.target.closest('select, input, button')) return;
+            this.pause();
+            this.dragState.isDragging = true;
+            this.dragState.isTap = true;
+            this.dragState.startX = (e.type === 'touchstart') ? e.touches[0].clientX : e.clientX;
+            this.dragState.startY = (e.type === 'touchstart') ? e.touches[0].clientY : e.clientY;
+            const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform);
+            this.dragState.startTranslateY = currentTransform.m42;
+            this.els.textContent.style.transition = 'none';
+        }
+
+        onDragMove(e) {
+            if (!this.dragState.isDragging) return;
+            const currentX = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
+            const currentY = (e.type === 'touchmove') ? e.touches[0].clientY : e.clientY;
+            if (Math.abs(currentX - this.dragState.startX) > 5 || Math.abs(currentY - this.dragState.startY) > 5) {
+                this.dragState.isTap = false;
+            }
+            if (!this.dragState.isTap) {
+                if(e.cancelable) e.preventDefault();
+                const moveY = currentY - this.dragState.startY;
+                const newTranslateY = this.dragState.startTranslateY + moveY;
+                this.els.textContent.style.transform = `translateY(${newTranslateY}px)`;
+            }
+        }
+
+        onDragEnd(e) {
+            if (!this.dragState.isDragging) return;
+            if (this.dragState.isTap) {
+                const touch = e.changedTouches ? e.changedTouches[0] : e;
+                if (touch) {
+                    const target = document.elementFromPoint(touch.clientX, touch.clientY);
+                    if (target && target.classList.contains('char') && target.classList.contains('hidden')) {
+                        target.classList.add('revealed');
+                    }
+                }
+            }
+            this.dragState.isDragging = false;
+            this.els.textContent.style.transition = 'transform 0.3s ease-in-out';
+        }
+        
+        updateSettings(shouldRerender = false) {
+            this.state.fontSize = parseFloat(this.els.fontSizeSlider.value);
+            this.state.highlightSpeed = parseFloat(this.els.speedSlider.value) * 1000;
+            this.state.maskRate = parseFloat(this.els.maskRateSlider.value) / 100;
+            this.updateUIFromState();
+            if (this.state.isPlaying) {
+                clearTimeout(this.state.timer);
+                this.state.timer = setTimeout(() => this.tick(), this.state.highlightSpeed);
+            }
+            if (shouldRerender) { this.renderText(); }
+            this.saveSettings();
+        }
+
+        updateUIFromState() {
+            this.els.fontSizeSlider.value = this.state.fontSize;
+            this.els.fontSizeValue.textContent = this.state.fontSize;
+            document.getElementById('text-content').style.fontSize = `${this.state.fontSize}px`;
+            this.els.speedSlider.value = this.state.highlightSpeed / 1000;
+            this.els.speedValue.textContent = this.els.speedSlider.value;
+            this.els.maskRateSlider.value = this.state.maskRate * 100;
+            this.els.maskRateValue.textContent = Math.round(this.state.maskRate * 100);
+        }
+
+        renderText() {
+            this.pause();
+            this.els.textContent.innerHTML = '';
+            this.state.words = [];
+            const processedText = this.state.originalText.replace(/\n/g, '<br>');
+            this.els.textContent.innerHTML = processedText;
+            const walker = document.createTreeWalker(this.els.textContent, NodeFilter.SHOW_TEXT, null, false);
+            const textNodes = [];
+            let node;
+            while (node = walker.nextNode()) { textNodes.push(node); }
+            textNodes.forEach(textNode => {
+                const parent = textNode.parentNode;
+                const text = textNode.textContent;
+                const wordRegex = /\p{L}+|\p{N}+|[^\s\p{L}\p{N}]+/gu;
+                const matches = [...text.matchAll(wordRegex)];
+                let lastIndex = 0;
+                matches.forEach(match => {
+                    const wordStr = match[0];
+                    const index = match.index;
+                    if (index > lastIndex) { parent.insertBefore(document.createTextNode(text.substring(lastIndex, index)), textNode); }
+                    const wordEl = document.createElement('span');
+                    wordEl.className = 'word';
+                    for (const char of wordStr) {
+                        const charEl = document.createElement('span');
+                        charEl.className = 'char';
+                        charEl.textContent = char;
+                        const ignoreRegex = /[「」（）【】、。・，()\/]/;
+                        if (/\s/.test(char)) {
+                            charEl.textContent = '⚫';
+                            charEl.classList.add('placeholder-dot');
+                        } else if (ignoreRegex.test(char)) {
+                        } else if (Math.random() < this.state.maskRate) {
+                            charEl.classList.add('hidden');
+                        }
+                        wordEl.appendChild(charEl);
+                    }
+                    parent.insertBefore(wordEl, textNode);
+                    this.state.words.push(wordEl);
+                    lastIndex = index + wordStr.length;
+                });
+                if (lastIndex < text.length) { parent.insertBefore(document.createTextNode(text.substring(lastIndex)), textNode); }
+                parent.removeChild(textNode);
+            });
+            this.reset();
+        }
+
+        play() { if (this.state.words.length === 0) return; this.state.isPlaying = true; this.els.playPauseBtn.textContent = '一時停止'; this.tick(); }
+        
+        pause() { this.state.isPlaying = false; this.els.playPauseBtn.textContent = '再生'; clearTimeout(this.state.timer); if ('speechSynthesis' in window) { speechSynthesis.cancel(); } }
+
+        togglePlay() { if (this.state.isPlaying) { this.pause(); } else { this.play(); } }
+
+        tick() {
+            if (!this.state.isPlaying) return;
+            if (this.state.currentWordIndex >= 0) {
+                const prevWordEl = this.state.words[this.state.currentWordIndex];
+                if(prevWordEl) {
+                    const guideLineTop = this.els.guideLine.getBoundingClientRect().top;
+                    const prevWordTop = prevWordEl.getBoundingClientRect().top;
+                    if (prevWordTop < guideLineTop) { this.revealWord(prevWordEl); }
+                }
+            }
+            this.highlightNextWord();
+            if (this.els.speechToggle.checked && this.state.words.length > 0 && 'speechSynthesis' in window) {
+                const currentWordEl = this.state.words[this.state.currentWordIndex];
+                if (currentWordEl) {
+                    const utterance = new SpeechSynthesisUtterance(currentWordEl.textContent);
+                    const selectedVoiceName = this.els.voiceSelect.selectedOptions[0]?.getAttribute('data-name');
+                    if (selectedVoiceName) {
+                        const selectedVoice = this.state.voices.find(voice => voice.name === selectedVoiceName);
+                        if (selectedVoice) { utterance.voice = selectedVoice; }
+                    }
+                    utterance.lang = 'ja-JP';
+                    speechSynthesis.speak(utterance);
+                }
+            }
+            if (this.state.currentWordIndex < this.state.words.length - 1) { this.state.timer = setTimeout(() => this.tick(), this.state.highlightSpeed); } else { this.pause(); this.revealAllWords(); }
+        }
+
+        highlightNextWord() {
+            if (this.state.currentWordIndex >= 0) {
+                const prevWordEl = this.state.words[this.state.currentWordIndex];
+                if (prevWordEl) { prevWordEl.classList.remove('highlight'); this.revealWord(prevWordEl); }
+            }
+            this.state.currentWordIndex++;
+            if (this.state.currentWordIndex >= this.state.words.length) {
+                this.state.currentWordIndex = this.state.words.length - 1;
+                this.pause();
+                return;
+            }
+            const currentWordEl = this.state.words[this.state.currentWordIndex];
+            if(currentWordEl) { currentWordEl.classList.add('highlight'); this.scrollToCurrentWord(); this.updateInfo(); }
+        }
+
+        scrollToCurrentWord() { if (this.state.currentWordIndex < 0) return; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (!currentWordEl) return; const guideLineTop = this.els.guideLine.getBoundingClientRect().top; const wordTop = currentWordEl.getBoundingClientRect().top; const scrollOffset = wordTop - guideLineTop; const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform); const newTranslateY = currentTransform.m42 - scrollOffset; this.els.textContent.style.transform = `translateY(${newTranslateY}px)`; }
+        
+        reset() { this.pause(); this.state.currentWordIndex = -1; this.els.textContent.style.transition = 'none'; this.els.textContent.style.transform = 'translateY(0px)'; setTimeout(() => { this.els.textContent.style.transition = 'transform 0.3s ease-in-out'; }, 50); this.state.words.forEach(wordEl => { wordEl.classList.remove('highlight'); wordEl.querySelectorAll('.char.revealed').forEach(char => { char.classList.remove('revealed'); }); }); this.updateInfo(); }
+
+        updateInfo() { if (this.state.currentWordIndex < 0 || this.state.words.length === 0) { this.els.progressInfo.textContent = '0'; this.els.wordInfo.textContent = '-'; return; } const progress = Math.round(((this.state.currentWordIndex + 1) / this.state.words.length) * 100); this.els.progressInfo.textContent = `${progress}`; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (currentWordEl) { this.els.wordInfo.textContent = currentWordEl.textContent.trim(); } }
+        
+        revealWord(wordEl) { if(wordEl) { wordEl.querySelectorAll('.char.hidden').forEach(char => { char.classList.add('revealed'); }); } }
+        
+        revealAllWords() { this.state.words.forEach(wordEl => this.revealWord(wordEl)); }
+        
+        handleKeydown(e) { if (e.target.tagName === 'TEXTAREA') return; if (e.code === 'Space') { e.preventDefault(); this.togglePlay(); } else if (e.code === 'KeyR') { e.preventDefault(); this.reset(); } }
+        
+        handleResize() { this.renderText(); }
+        
+        saveSettings() {
+            const settings = {
+                fontSize: this.state.fontSize,
+                highlightSpeed: this.state.highlightSpeed,
+                maskRate: this.state.maskRate,
+            };
+            localStorage.setItem('ankiTeleprompterSettings_v17', JSON.stringify(settings));
+        }
+
+        loadSettings() {
+            const savedSettings = localStorage.getItem('ankiTeleprompterSettings_v17');
+            if (savedSettings) {
+                const settings = JSON.parse(savedSettings);
+                this.state.fontSize = settings.fontSize || 24;
+                this.state.highlightSpeed = settings.highlightSpeed || 1500;
+                this.state.maskRate = (typeof settings.maskRate === 'number') ? settings.maskRate : 0.3;
+            }
+        }
+    }
+    new AnkiTeleprompter();
+});
     </script>
 </body>
 </html>
