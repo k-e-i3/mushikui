@@ -386,7 +386,7 @@
 
         <!-- 間違いログパネル -->
         <div id="mistake-log-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
-            <h3 style="margin-bottom: 10px; color: #dc3545;">?? 間違いログ</h3>
+            <h3 style="margin-bottom: 10px; color: #dc3545;">🚨 間違いログ</h3>
             <div id="mistake-list"></div>
             <div style="margin-top: 10px;">
                 <button onclick="clearMistakeLog()" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">ログクリア</button>
@@ -669,8 +669,8 @@
                     if (start + length <= text.length) {
                         const substring = text.substring(start, start + length);
                         
-                        // 改行や記号のみは除外、かつ必ず3-6文字であることを再確認
-                        if (!/^[\s\n、。（）「」【】]+$/.test(substring) && substring.length >= 3 && substring.length <= 6) {
+                        // 改行文字や句読点を含む候補は除外
+                        if (!/[\s\n、。（）「」【】]/.test(substring) && substring.length >= 3 && substring.length <= 6) {
                             candidates.push({
                                 text: substring,
                                 start: start,
