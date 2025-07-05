@@ -355,8 +355,8 @@
                 </div>
                 <div class="control-group">
                     <label>虫食い:</label>
-                    <input type="range" id="maskRateSlider" min="0" max="100" value="30" style="width: 60px;">
-                    <span id="maskRateValue">30</span>%
+                    <input type="range" id="maskRateSlider" min="0" max="10" value="3" style="width: 60px;">
+                    <span id="maskRateValue">3</span>%
                 </div>
                 <div class="control-group">
                     <select id="pageCount">
@@ -386,7 +386,7 @@
 
         <!-- 間違いログパネル -->
         <div id="mistake-log-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
-            <h3 style="margin-bottom: 10px; color: #dc3545;">🚨 間違いログ</h3>
+            <h3 style="margin-bottom: 10px; color: #dc3545;">?? 間違いログ</h3>
             <div id="mistake-list"></div>
             <div style="margin-top: 10px;">
                 <button onclick="clearMistakeLog()" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">ログクリア</button>
@@ -442,7 +442,7 @@
             currentWordIndex: -1,
             timer: null,
             speed: 1000,
-            maskRate: 0.3,
+            maskRate: 0.03,
             voices: [],
             currentEditingProblem: null,
             currentEditingProblemIndex: -1,
@@ -657,89 +657,100 @@
             generateProblems(text);
         }
 
-        // 虫食い問題生成
+        // 虫食い問題生成（効率的な方法）
         function generateProblems(text) {
             const maskRate = state.maskRate;
             if (maskRate === 0) return;
 
-            const chars = text.split('');
-            const hiddenIndices = [];
-
-            // 専門用語重視のアルゴリズム
-            chars.forEach((char, index) => {
-                // 隠さない文字
-                if (/[\s\n、。（）「」【】]/.test(char)) return;
-                
-                // 漢字・カタカナは高確率で隠す
-                const isImportant = /[\p{Script=Han}\p{Script=Katakana}]/u.test(char);
-                const hideChance = isImportant ? maskRate * 1.5 : maskRate;
-                
-                if (Math.random() < hideChance) {
-                    hiddenIndices.push(index);
-                }
-            });
-
-            // 連続する隠し文字を問題として統合
-            let problemId = 0;
-            let currentProblem = null;
-            const tempProblems = [];
-
-            hiddenIndices.sort((a, b) => a - b);
-            
-            hiddenIndices.forEach(index => {
-                const charData = state.characterData[index];
-                if (!charData || !charData.cell) return;
-
-                if (currentProblem && index === currentProblem.endIndex + 1) {
-                    // 連続している場合は現在の問題に追加
-                    currentProblem.endIndex = index;
-                    currentProblem.answer += chars[index];
-                    currentProblem.cells.push(charData.cell);
-                } else {
-                    // 新しい問題開始
-                    currentProblem = {
-                        id: problemId++,
-                        startIndex: index,
-                        endIndex: index,
-                        answer: chars[index],
-                        cells: [charData.cell]
-                    };
-                    tempProblems.push(currentProblem);
-                }
-            });
-
-            // 3文字以上7文字以下の問題のみを採用し、文字位置順にソート
-            const validProblems = tempProblems.filter(problem => 
-                problem.answer.length >= 3 && problem.answer.length <= 7
-            );
-            validProblems.sort((a, b) => a.startIndex - b.startIndex);
-            
-            // 最終的な問題リストを作成
-            validProblems.forEach((problem, index) => {
-                problem.id = index;
-                state.problems.push(problem);
-                
-                // セルを隠す
-                problem.cells.forEach(cell => {
-                    cell.classList.add('hidden');
-                    cell.textContent = '○';
-                    cell.dataset.problemId = problem.id;
-                    
-                    // 間違えた単語かチェックして赤色表示
-                    if (isMistakenWord(problem.answer)) {
-                        cell.classList.add('mistake');
+            // 3～6文字のすべての部分文字列を抽出
+            const candidates = [];
+            for (let start = 0; start < text.length; start++) {
+                for (let length = 3; length <= 6; length++) {
+                    if (start + length <= text.length) {
+                        const substring = text.substring(start, start + length);
+                        
+                        // 改行や記号のみは除外、かつ必ず3-6文字であることを再確認
+                        if (!/^[\s\n、。（）「」【】]+$/.test(substring) && substring.length >= 3 && substring.length <= 6) {
+                            candidates.push({
+                                text: substring,
+                                start: start,
+                                end: start + length - 1
+                            });
+                        }
                     }
-                });
-            });
+                }
+            }
 
-            // 1文字の問題は隠さない（元の文字を表示）
-            tempProblems.forEach(problem => {
-                if (problem.answer.length < 2) {
-                    problem.cells.forEach(cell => {
-                        const charIndex = parseInt(cell.dataset.charIndex);
-                        const charData = state.characterData[charIndex];
-                        if (charData) {
-                            cell.textContent = charData.char;
+            // 重複を避けて選択（隣接も避ける）
+            const selectedCandidates = [];
+            const usedPositions = new Set();
+            
+            // 候補をシャッフル
+            const shuffledCandidates = candidates.sort(() => Math.random() - 0.5);
+            
+            for (const candidate of shuffledCandidates) {
+                // 現在の虫食い率をチェック
+                if (selectedCandidates.length >= candidates.length * maskRate) break;
+                
+                // 位置の重複・隣接チェック（前後1文字の余裕を設ける）
+                let hasOverlap = false;
+                for (let i = candidate.start - 1; i <= candidate.end + 1; i++) {
+                    if (usedPositions.has(i)) {
+                        hasOverlap = true;
+                        break;
+                    }
+                }
+                
+                if (!hasOverlap) {
+                    selectedCandidates.push(candidate);
+                    // 使用位置をマーク（前後1文字も含む）
+                    for (let i = candidate.start - 1; i <= candidate.end + 1; i++) {
+                        usedPositions.add(i);
+                    }
+                }
+            }
+
+            // 問題を作成
+            selectedCandidates.sort((a, b) => a.start - b.start);
+            
+            selectedCandidates.forEach((candidate, index) => {
+                const cells = [];
+                
+                // 該当する文字のセルを取得
+                for (let i = candidate.start; i <= candidate.end; i++) {
+                    const charData = state.characterData[i];
+                    if (charData && charData.cell) {
+                        cells.push(charData.cell);
+                    }
+                }
+                
+                if (cells.length > 0) {
+                    const problem = {
+                        id: index,
+                        startIndex: candidate.start,
+                        endIndex: candidate.end,
+                        answer: candidate.text,
+                        cells: cells
+                    };
+                    
+                    // 再度確認：3-6文字でない場合はスキップ
+                    if (problem.answer.length < 3 || problem.answer.length > 6) {
+                        console.log('不正な長さの問題をスキップ:', problem.answer, problem.answer.length);
+                        return;
+                    }
+                    
+                    state.problems.push(problem);
+                    console.log('虫食い問題作成:', problem.answer, `(${problem.answer.length}文字)`);
+                    
+                    // セルを隠す
+                    cells.forEach(cell => {
+                        cell.classList.add('hidden');
+                        cell.textContent = '○';
+                        cell.dataset.problemId = problem.id;
+                        
+                        // 間違えた単語かチェックして赤色表示
+                        if (isMistakenWord(problem.answer)) {
+                            cell.classList.add('mistake');
                         }
                     });
                 }
