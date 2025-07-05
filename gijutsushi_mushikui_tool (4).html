@@ -1,0 +1,1059 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技術士試験用統合学習ツール</title>
+    <style>
+        :root {
+            --base-color: #4169E1;
+            --highlight-color: #FFF1AB;
+            --danger-color: #DC143C;
+            --editing-color: #d1e7fd;
+            --correct-color: #c8e6c8;
+            --incorrect-color: #ffcccb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'MS Gothic', 'ＭＳ ゴシック', monospace;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 20px;
+            margin-bottom: 20px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        select, button, input[type="range"] {
+            padding: 6px 12px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 14px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        button.primary {
+            background-color: var(--base-color);
+            color: white;
+            border-color: var(--base-color);
+        }
+
+        button.primary:hover {
+            background-color: #1E90FF;
+        }
+
+        .input-area {
+            width: 100%;
+            margin: 15px 0;
+        }
+
+        .input-area textarea {
+            width: 100%;
+            height: 120px;
+            font-size: 16px;
+            padding: 10px;
+            border: 2px solid var(--base-color);
+            border-radius: 5px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .counter {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .manuscript-paper {
+            position: relative;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .page {
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: -25px;
+            right: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(24, 30px);
+            grid-auto-rows: 30px;
+            border: 2px solid var(--base-color);
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid var(--base-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            position: relative;
+            background-color: white;
+            transition: all 0.3s ease;
+        }
+
+        .cell.highlight {
+            background-color: var(--highlight-color);
+            animation: pulse 1s ease-in-out;
+        }
+
+        .cell.hidden {
+            background-color: #e0e0e0;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .cell.hidden:hover {
+            background-color: #d0d0d0;
+        }
+
+        .cell.editing {
+            background-color: var(--editing-color);
+            border: 2px solid var(--base-color);
+        }
+
+        .cell.correct {
+            background-color: var(--correct-color);
+            color: #333;
+        }
+
+        .cell.incorrect {
+            background-color: var(--incorrect-color);
+            color: #333;
+        }
+
+        .cell.half-width {
+            font-size: 14px;
+            letter-spacing: -1px;
+        }
+
+        .cell.punctuation {
+            color: #FF1493;
+        }
+
+        .cell .end-punctuation {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 12px;
+            color: #FF1493;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* ポップアップエディター */
+        #popup-editor {
+            display: none;
+            position: absolute;
+            background-color: white;
+            border: 3px solid var(--base-color);
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            z-index: 1000;
+            min-width: 300px;
+            max-width: 600px;
+        }
+
+        #popup-editor.incorrect-feedback {
+            animation: shake 0.5s;
+            border-color: var(--danger-color);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            50% { transform: translateX(8px); }
+            75% { transform: translateX(-8px); }
+        }
+
+        .context-display {
+            font-size: 18px;
+            line-height: 1.6;
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .answer-blank {
+            display: inline-block;
+            border-bottom: 2px solid var(--base-color);
+            min-width: 40px;
+            margin: 0 4px;
+            text-align: center;
+            background-color: white;
+            padding: 2px 4px;
+        }
+
+        #popup-input {
+            width: 100%;
+            padding: 12px;
+            font-size: 18px;
+            border: 2px solid #ccc;
+            border-radius: 6px;
+            text-align: center;
+            margin-bottom: 15px;
+            font-family: inherit;
+        }
+
+        .popup-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .popup-buttons button {
+            padding: 10px 20px;
+            font-size: 16px;
+            border-radius: 6px;
+        }
+
+        #feedback-message {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        #feedback-message.error {
+            background-color: var(--incorrect-color);
+            color: var(--danger-color);
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            .controls-container,
+            .input-area,
+            #popup-editor {
+                display: none;
+            }
+            .page {
+                page-break-after: always;
+                margin-bottom: 0;
+            }
+            .page:last-child {
+                page-break-after: auto;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: repeat(24, 25px);
+            }
+            .cell {
+                width: 25px;
+                height: 25px;
+                font-size: 14px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-container">
+            <!-- 再生・速度コントロール -->
+            <div class="controls">
+                <div class="control-group">
+                    <button id="playPauseBtn" class="primary">再生</button>
+                    <button id="resetBtn">リセット</button>
+                </div>
+                <div class="control-group">
+                    <label>速度:</label>
+                    <input type="range" id="speedSlider" min="0.1" max="3" step="0.1" value="1.0" style="width: 80px;">
+                    <span id="speedValue">1.0</span>s
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="speechToggle">
+                    <label for="speechToggle">読み上げ</label>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="autopauseToggle" checked>
+                    <label for="autopauseToggle">虫食いで一時停止</label>
+                </div>
+            </div>
+
+            <!-- 虫食い・設定コントロール -->
+            <div class="controls">
+                <div class="control-group">
+                    <label for="textSelect">テキスト選択:</label>
+                    <select id="textSelect">
+                        <option value="">GitHubから選択...</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>虫食い率:</label>
+                    <input type="range" id="maskRateSlider" min="0" max="80" value="30" style="width: 80px;">
+                    <span id="maskRateValue">30</span>%
+                </div>
+                <div class="control-group">
+                    <label for="pageCount">枚数:</label>
+                    <select id="pageCount">
+                        <option value="1">1枚</option>
+                        <option value="2">2枚</option>
+                        <option value="3" selected>3枚</option>
+                        <option value="4">4枚</option>
+                        <option value="5">5枚</option>
+                        <option value="6">6枚</option>
+                        <option value="7">7枚</option>
+                        <option value="8">8枚</option>
+                        <option value="9">9枚</option>
+                        <option value="10">10枚</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <textarea id="textInput" placeholder="学習したい文章を入力するか、上のテキスト選択から選んでください..."></textarea>
+        </div>
+
+        <div class="counter">
+            文字数: <span id="charCount">0</span> / <span id="maxChars">1800</span>
+        </div>
+
+        <div class="manuscript-paper" id="manuscriptPaper">
+            <!-- ここにページが動的に生成される -->
+        </div>
+    </div>
+
+    <!-- ポップアップエディター -->
+    <div id="popup-editor">
+        <div class="context-display" id="contextDisplay"></div>
+        <input type="text" id="popup-input" placeholder="ここに答えを入力">
+        <div class="popup-buttons">
+            <button id="submitBtn" class="primary">確定</button>
+            <button id="cancelBtn">キャンセル</button>
+            <button id="showAnswerBtn">答えを見る</button>
+        </div>
+        <div id="feedback-message"></div>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const elements = {
+            textInput: document.getElementById('textInput'),
+            manuscriptPaper: document.getElementById('manuscriptPaper'),
+            pageCountSelect: document.getElementById('pageCount'),
+            textSelect: document.getElementById('textSelect'),
+            maskRateSlider: document.getElementById('maskRateSlider'),
+            maskRateValue: document.getElementById('maskRateValue'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            resetBtn: document.getElementById('resetBtn'),
+            speedSlider: document.getElementById('speedSlider'),
+            speedValue: document.getElementById('speedValue'),
+            speechToggle: document.getElementById('speechToggle'),
+            autopauseToggle: document.getElementById('autopauseToggle'),
+            charCount: document.getElementById('charCount'),
+            maxChars: document.getElementById('maxChars'),
+            popupEditor: document.getElementById('popup-editor'),
+            contextDisplay: document.getElementById('contextDisplay'),
+            popupInput: document.getElementById('popup-input'),
+            submitBtn: document.getElementById('submitBtn'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            showAnswerBtn: document.getElementById('showAnswerBtn'),
+            feedbackMessage: document.getElementById('feedback-message')
+        };
+
+        // アプリケーション状態
+        let state = {
+            isPlaying: false,
+            currentWordIndex: -1,
+            timer: null,
+            speed: 1000,
+            maskRate: 0.3,
+            voices: [],
+            currentEditingProblem: null,
+            problems: [],
+            characterData: []
+        };
+
+        const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
+
+        // 文字が半角英数字かどうかを判定
+        function isHalfWidth(char) {
+            return /^[a-zA-Z0-9]$/.test(char);
+        }
+
+        // 句読点かどうかを判定
+        function isPunctuation(char) {
+            return /^[、。]$/.test(char);
+        }
+
+        // 初期化
+        function initialize() {
+            bindEvents();
+            initSpeech();
+            loadTextList();
+            loadSavedText();
+            initializeGrid();
+        }
+
+        // イベントバインディング
+        function bindEvents() {
+            elements.textInput.addEventListener('input', debounce(handleTextInput, 500));
+            elements.pageCountSelect.addEventListener('change', initializeGrid);
+            elements.textSelect.addEventListener('change', (e) => loadTextContent(e.target.value));
+            elements.maskRateSlider.addEventListener('input', updateMaskRate);
+            elements.playPauseBtn.addEventListener('click', togglePlay);
+            elements.resetBtn.addEventListener('click', resetAll);
+            elements.speedSlider.addEventListener('input', updateSpeed);
+            
+            // ポップアップ関連
+            elements.submitBtn.addEventListener('click', submitAnswer);
+            elements.cancelBtn.addEventListener('click', hidePopup);
+            elements.showAnswerBtn.addEventListener('click', showAnswer);
+            elements.popupInput.addEventListener('keydown', handlePopupKeydown);
+            
+            // 外側クリックでポップアップを閉じる
+            document.addEventListener('click', (e) => {
+                if (!elements.popupEditor.contains(e.target) && !e.target.closest('.cell')) {
+                    hidePopup();
+                }
+            });
+        }
+
+        // グリッド初期化
+        function initializeGrid() {
+            const pageCount = parseInt(elements.pageCountSelect.value);
+            const totalCells = pageCount * 600;
+            elements.maxChars.textContent = totalCells;
+            
+            elements.manuscriptPaper.innerHTML = '';
+            
+            for (let pageNum = 0; pageNum < pageCount; pageNum++) {
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page';
+                
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'grid';
+                
+                for (let i = 0; i < 600; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.addEventListener('click', handleCellClick);
+                    gridDiv.appendChild(cell);
+                }
+                
+                const pageNumber = document.createElement('div');
+                pageNumber.className = 'page-number';
+                pageNumber.textContent = `${pageNum + 1}/${pageCount}`;
+                
+                pageDiv.appendChild(gridDiv);
+                pageDiv.appendChild(pageNumber);
+                elements.manuscriptPaper.appendChild(pageDiv);
+            }
+            
+            updateManuscript();
+        }
+
+        // 文章更新処理
+        function updateManuscript() {
+            pause();
+            hidePopup();
+            state.currentWordIndex = -1;
+            state.problems = [];
+            state.characterData = [];
+            
+            const text = elements.textInput.value;
+            const allCells = Array.from(elements.manuscriptPaper.querySelectorAll('.cell'));
+            
+            // セルをクリア
+            allCells.forEach(cell => {
+                cell.textContent = '';
+                cell.className = 'cell';
+                const endPunc = cell.querySelector('.end-punctuation');
+                if (endPunc) endPunc.remove();
+                delete cell.dataset.charIndex;
+                delete cell.dataset.problemId;
+            });
+
+            if (!text.trim()) {
+                elements.charCount.textContent = '0';
+                return;
+            }
+
+            // 文字配置処理
+            let cellIndex = 0;
+            let textIndex = 0;
+            let charCount = 0;
+
+            while (textIndex < text.length && cellIndex < allCells.length) {
+                const char = text[textIndex];
+                const currentCol = (cellIndex % 600) % 24;
+
+                if (char === '\n') {
+                    // 改行処理
+                    if (cellIndex > 0 && cellIndex % 24 === 0) {
+                        textIndex++;
+                        continue;
+                    }
+                    const currentPageRow = Math.floor((cellIndex % 600) / 24);
+                    cellIndex = Math.floor(cellIndex / 600) * 600 + (currentPageRow + 1) * 24;
+                    textIndex++;
+                    continue;
+                }
+
+                // 句読点処理
+                const nextChar = textIndex + 1 < text.length ? text[textIndex + 1] : null;
+                
+                if (currentCol === 23 && nextChar && isPunctuation(nextChar)) {
+                    allCells[cellIndex].textContent = char;
+                    allCells[cellIndex].dataset.charIndex = textIndex;
+                    state.characterData[textIndex] = {
+                        char: char,
+                        cell: allCells[cellIndex],
+                        cellIndex: cellIndex
+                    };
+                    
+                    const punctuationSpan = document.createElement('span');
+                    punctuationSpan.className = 'end-punctuation';
+                    punctuationSpan.textContent = nextChar;
+                    allCells[cellIndex].appendChild(punctuationSpan);
+                    allCells[cellIndex].classList.add('punctuation');
+                    
+                    textIndex += 2;
+                    charCount += 2;
+                    cellIndex = Math.floor(cellIndex / 24) * 24 + 24;
+                    continue;
+                }
+
+                // 半角英数字の連続処理
+                if (isHalfWidth(char) && nextChar && isHalfWidth(nextChar)) {
+                    allCells[cellIndex].textContent = char + nextChar;
+                    allCells[cellIndex].classList.add('half-width');
+                    allCells[cellIndex].dataset.charIndex = textIndex;
+                    
+                    // 両方の文字のデータを保存
+                    state.characterData[textIndex] = {
+                        char: char,
+                        cell: allCells[cellIndex],
+                        cellIndex: cellIndex,
+                        isFirstHalf: true
+                    };
+                    state.characterData[textIndex + 1] = {
+                        char: nextChar,
+                        cell: allCells[cellIndex],
+                        cellIndex: cellIndex,
+                        isSecondHalf: true
+                    };
+                    
+                    textIndex += 2;
+                    charCount += 2;
+                    cellIndex++;
+                    continue;
+                }
+
+                // 通常文字配置
+                allCells[cellIndex].textContent = char;
+                allCells[cellIndex].dataset.charIndex = textIndex;
+                state.characterData[textIndex] = {
+                    char: char,
+                    cell: allCells[cellIndex],
+                    cellIndex: cellIndex
+                };
+                
+                if (isPunctuation(char)) {
+                    allCells[cellIndex].classList.add('punctuation');
+                }
+                
+                textIndex++;
+                charCount++;
+                cellIndex++;
+            }
+
+            elements.charCount.textContent = charCount;
+            
+            // 虫食い問題生成
+            generateProblems(text);
+        }
+
+        // 虫食い問題生成
+        function generateProblems(text) {
+            const maskRate = state.maskRate;
+            if (maskRate === 0) return;
+
+            const chars = text.split('');
+            const hiddenIndices = [];
+
+            // 専門用語重視のアルゴリズム
+            chars.forEach((char, index) => {
+                // 隠さない文字
+                if (/[\s\n、。（）「」【】]/.test(char)) return;
+                
+                // 漢字・カタカナは高確率で隠す
+                const isImportant = /[\p{Script=Han}\p{Script=Katakana}]/u.test(char);
+                const hideChance = isImportant ? maskRate * 1.5 : maskRate;
+                
+                if (Math.random() < hideChance) {
+                    hiddenIndices.push(index);
+                }
+            });
+
+            // 連続する隠し文字を問題として統合
+            let problemId = 0;
+            let currentProblem = null;
+            const tempProblems = [];
+
+            hiddenIndices.sort((a, b) => a - b);
+            
+            hiddenIndices.forEach(index => {
+                const charData = state.characterData[index];
+                if (!charData || !charData.cell) return;
+
+                if (currentProblem && index === currentProblem.endIndex + 1) {
+                    // 連続している場合は現在の問題に追加
+                    currentProblem.endIndex = index;
+                    currentProblem.answer += chars[index];
+                    currentProblem.cells.push(charData.cell);
+                } else {
+                    // 新しい問題開始
+                    currentProblem = {
+                        id: problemId++,
+                        startIndex: index,
+                        endIndex: index,
+                        answer: chars[index],
+                        cells: [charData.cell]
+                    };
+                    tempProblems.push(currentProblem);
+                }
+            });
+
+            // 2文字以上の問題のみを採用
+            let finalProblemId = 0;
+            tempProblems.forEach(problem => {
+                if (problem.answer.length >= 2) {
+                    problem.id = finalProblemId++;
+                    state.problems.push(problem);
+                    // セルを隠す
+                    problem.cells.forEach(cell => {
+                        cell.classList.add('hidden');
+                        cell.textContent = '○';
+                        cell.dataset.problemId = problem.id;
+                    });
+                } else {
+                    // 1文字の問題は隠さない（元の文字を表示）
+                    problem.cells.forEach(cell => {
+                        const charIndex = parseInt(cell.dataset.charIndex);
+                        const charData = state.characterData[charIndex];
+                        if (charData) {
+                            cell.textContent = charData.char;
+                        }
+                    });
+                }
+            });
+        }
+
+        // セルクリック処理
+        function handleCellClick(event) {
+            const cell = event.target;
+            if (!cell.classList.contains('hidden') || !cell.dataset.problemId) return;
+
+            const problemId = parseInt(cell.dataset.problemId);
+            const problem = state.problems[problemId];
+            if (!problem) return;
+
+            state.currentEditingProblem = problem;
+            showPopup(problem);
+        }
+
+        // ポップアップ表示
+        function showPopup(problem) {
+            const startIndex = problem.startIndex;
+            const endIndex = problem.endIndex;
+            const text = elements.textInput.value;
+            
+            // 前後の文脈を取得（15文字ずつ）
+            const contextBefore = text.substring(Math.max(0, startIndex - 15), startIndex);
+            const contextAfter = text.substring(endIndex + 1, Math.min(text.length, endIndex + 16));
+            
+            // コンテキスト表示（パターンA: 空白入力方式）
+            const blankSpace = '　'.repeat(problem.answer.length);
+            elements.contextDisplay.innerHTML = `
+                <span style="color: #666;">${escapeHtml(contextBefore)}</span><span class="answer-blank">${blankSpace}</span><span style="color: #666;">${escapeHtml(contextAfter)}</span>
+            `;
+            
+            elements.popupInput.value = '';
+            elements.popupInput.style.width = `${Math.max(problem.answer.length + 5, 6)}em`;
+            elements.feedbackMessage.textContent = '';
+            elements.feedbackMessage.className = '';
+
+            // 問題のセルを編集状態に
+            problem.cells.forEach(cell => cell.classList.add('editing'));
+
+            // ポップアップ位置調整
+            const firstCell = problem.cells[0];
+            const rect = firstCell.getBoundingClientRect();
+            elements.popupEditor.style.display = 'block';
+            elements.popupEditor.style.top = `${window.scrollY + rect.top - elements.popupEditor.offsetHeight - 10}px`;
+            elements.popupEditor.style.left = `${window.scrollX + rect.left + (rect.width / 2) - (elements.popupEditor.offsetWidth / 2)}px`;
+            
+            elements.popupInput.focus();
+        }
+
+        // ポップアップ非表示
+        function hidePopup() {
+            document.querySelectorAll('.cell.editing').forEach(cell => {
+                cell.classList.remove('editing');
+            });
+            elements.popupEditor.style.display = 'none';
+            elements.popupEditor.classList.remove('incorrect-feedback');
+            state.currentEditingProblem = null;
+        }
+
+        // 答え確認
+        function submitAnswer() {
+            if (!state.currentEditingProblem) return;
+
+            const userAnswer = elements.popupInput.value.trim();
+            const correctAnswer = state.currentEditingProblem.answer;
+
+            if (userAnswer === correctAnswer) {
+                // 正解
+                state.currentEditingProblem.cells.forEach(cell => {
+                    cell.classList.remove('hidden', 'editing');
+                    cell.classList.add('correct');
+                    const charIndex = parseInt(cell.dataset.charIndex);
+                    const charData = state.characterData[charIndex];
+                    if (charData) {
+                        cell.textContent = charData.char;
+                    }
+                });
+                hidePopup();
+                
+                if (state.isPlaying) {
+                    // 再生中なら少し待ってから続行
+                    setTimeout(() => {
+                        if (state.isPlaying) {
+                            state.timer = setTimeout(tick, 500);
+                        }
+                    }, 200);
+                }
+            } else {
+                // 不正解
+                elements.feedbackMessage.textContent = `不正解です。正解は「${correctAnswer}」`;
+                elements.feedbackMessage.className = 'error';
+                elements.popupEditor.classList.add('incorrect-feedback');
+                elements.popupInput.select();
+                
+                setTimeout(() => {
+                    elements.popupEditor.classList.remove('incorrect-feedback');
+                }, 500);
+            }
+        }
+
+        // 答えを見る
+        function showAnswer() {
+            if (!state.currentEditingProblem) return;
+            
+            const correctAnswer = state.currentEditingProblem.answer;
+            elements.popupInput.value = correctAnswer;
+            submitAnswer();
+        }
+
+        // ポップアップキーボード処理
+        function handlePopupKeydown(event) {
+            if (event.key === 'Enter') {
+                submitAnswer();
+            } else if (event.key === 'Escape') {
+                hidePopup();
+            }
+        }
+
+        // 再生関連
+        function togglePlay() {
+            state.isPlaying ? pause() : play();
+        }
+
+        function play() {
+            if (!elements.textInput.value.trim()) return;
+            
+            state.isPlaying = true;
+            elements.playPauseBtn.textContent = '一時停止';
+            
+            if (state.currentWordIndex >= getWordCount() - 1) {
+                state.currentWordIndex = -1;
+            }
+            
+            tick();
+        }
+
+        function pause() {
+            state.isPlaying = false;
+            elements.playPauseBtn.textContent = '再生';
+            clearTimeout(state.timer);
+        }
+
+        function tick() {
+            if (!state.isPlaying) return;
+
+            // 前の単語のハイライトを削除
+            if (state.currentWordIndex >= 0) {
+                removeWordHighlight(state.currentWordIndex);
+            }
+
+            state.currentWordIndex++;
+            const wordCount = getWordCount();
+            
+            if (state.currentWordIndex >= wordCount) {
+                pause();
+                return;
+            }
+
+            // 現在の単語をハイライト
+            highlightWord(state.currentWordIndex);
+
+            // 音声読み上げ
+            if (elements.speechToggle.checked) {
+                speakCurrentWord();
+            }
+
+            // 虫食い部分で一時停止するかチェック
+            if (elements.autopauseToggle.checked && isWordHidden(state.currentWordIndex)) {
+                pause();
+                // 該当するセルをクリックして編集開始
+                const wordCells = getWordCells(state.currentWordIndex);
+                if (wordCells.length > 0) {
+                    handleCellClick({ target: wordCells[0] });
+                }
+            } else {
+                state.timer = setTimeout(tick, state.speed);
+            }
+        }
+
+        function getWordCount() {
+            const text = elements.textInput.value;
+            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+            return words.length;
+        }
+
+        function highlightWord(wordIndex) {
+            const cells = getWordCells(wordIndex);
+            cells.forEach(cell => cell.classList.add('highlight'));
+        }
+
+        function removeWordHighlight(wordIndex) {
+            const cells = getWordCells(wordIndex);
+            cells.forEach(cell => cell.classList.remove('highlight'));
+        }
+
+        function getWordCells(wordIndex) {
+            const text = elements.textInput.value;
+            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+            
+            if (wordIndex >= words.length) return [];
+            
+            // 単語の位置を計算
+            let charPosition = 0;
+            for (let i = 0; i < wordIndex; i++) {
+                const wordStart = text.indexOf(words[i], charPosition);
+                charPosition = wordStart + words[i].length;
+            }
+            
+            const targetWord = words[wordIndex];
+            const wordStart = text.indexOf(targetWord, charPosition);
+            const wordEnd = wordStart + targetWord.length;
+            
+            const cells = [];
+            for (let i = wordStart; i < wordEnd; i++) {
+                const charData = state.characterData[i];
+                if (charData && charData.cell) {
+                    cells.push(charData.cell);
+                }
+            }
+            
+            return cells;
+        }
+
+        function isWordHidden(wordIndex) {
+            const cells = getWordCells(wordIndex);
+            return cells.some(cell => cell.classList.contains('hidden'));
+        }
+
+        function speakCurrentWord() {
+            if (!('speechSynthesis' in window)) return;
+            
+            const text = elements.textInput.value;
+            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+            
+            if (state.currentWordIndex < words.length) {
+                const word = words[state.currentWordIndex];
+                const utterance = new SpeechSynthesisUtterance(word);
+                utterance.lang = 'ja-JP';
+                
+                if (state.voices.length > 0) {
+                    utterance.voice = state.voices[0];
+                }
+                
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // その他のヘルパー関数
+        function updateMaskRate() {
+            state.maskRate = parseFloat(elements.maskRateSlider.value) / 100;
+            elements.maskRateValue.textContent = elements.maskRateSlider.value;
+            updateManuscript();
+        }
+
+        function updateSpeed() {
+            state.speed = parseFloat(elements.speedSlider.value) * 1000;
+            elements.speedValue.textContent = elements.speedSlider.value;
+        }
+
+        function resetAll() {
+            pause();
+            state.currentWordIndex = -1;
+            updateManuscript();
+        }
+
+        function initSpeech() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.onvoiceschanged = () => {
+                    state.voices = speechSynthesis.getVoices().filter(voice => voice.lang === 'ja-JP');
+                };
+            } else {
+                elements.speechToggle.parentElement.style.display = 'none';
+            }
+        }
+
+        function handleTextInput() {
+            updateManuscript();
+            saveTextToLocal();
+        }
+
+        function saveTextToLocal() {
+            localStorage.setItem('gijutsushiText_integrated', elements.textInput.value);
+        }
+
+        function loadSavedText() {
+            const saved = localStorage.getItem('gijutsushiText_integrated');
+            if (saved) {
+                elements.textInput.value = saved;
+            }
+        }
+
+        async function loadTextList() {
+            const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/index.json?t=${new Date().getTime()}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) return;
+                
+                const fileList = await response.json();
+                elements.textSelect.innerHTML = '<option value="">GitHubから選択...</option>';
+                
+                fileList.forEach(fileName => {
+                    const option = document.createElement('option');
+                    option.value = fileName;
+                    option.textContent = fileName.replace('.txt', '');
+                    elements.textSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('テキストリスト読み込みエラー:', error);
+            }
+        }
+
+        async function loadTextContent(fileName) {
+            if (!fileName) return;
+            
+            const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/${fileName}?t=${new Date().getTime()}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`ファイル読み込み失敗: ${fileName}`);
+                
+                const text = await response.text();
+                elements.textInput.value = text;
+                handleTextInput();
+            } catch (error) {
+                console.error('テキスト読み込みエラー:', error);
+                elements.textInput.value = `エラー: ${error.message}`;
+            }
+        }
+
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 初期化実行
+        initialize();
+    </script>
+</body>
+</html>
