@@ -382,6 +382,25 @@
         <div class="counter">
             文字数: <span id="charCount">0</span> / <span id="maxChars">1800</span>
             <button onclick="toggleMistakeLog()" style="margin-left: 15px; padding: 4px 8px; font-size: 12px;">間違いログ</button>
+            <button onclick="toggleSoundTest()" style="margin-left: 5px; padding: 4px 8px; font-size: 12px;">音選択</button>
+        </div>
+
+        <!-- 音選択パネル -->
+        <div id="sound-test-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin-bottom: 10px; color: #28a745;">🎵 正解音を選択</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                <button onclick="testSound(1)" style="padding: 6px 12px; font-size: 12px;">ピンポン</button>
+                <button onclick="testSound(2)" style="padding: 6px 12px; font-size: 12px;">シンプル</button>
+                <button onclick="testSound(3)" style="padding: 6px 12px; font-size: 12px;">ピアノ</button>
+                <button onclick="testSound(4)" style="padding: 6px 12px; font-size: 12px;">木琴</button>
+                <button onclick="testSound(5)" style="padding: 6px 12px; font-size: 12px;">ドレミ</button>
+                <button onclick="testSound(6)" style="padding: 6px 12px; font-size: 12px;">ビープ</button>
+                <button onclick="testSound(0)" style="padding: 6px 12px; font-size: 12px; background-color: #dc3545; color: white;">音なし</button>
+            </div>
+            <p style="margin-bottom: 10px; font-size: 13px;">現在選択: <span id="selected-sound">ピンポン</span></p>
+            <div style="margin-top: 10px;">
+                <button onclick="toggleSoundTest()" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">閉じる</button>
+            </div>
         </div>
 
         <!-- 間違いログパネル -->
@@ -453,6 +472,187 @@
 
         const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
 
+        // 音響効果用
+        let audioContext = null;
+        let selectedSoundType = 1; // デフォルトはピンポン
+
+        // 音響効果を初期化
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('音響効果は利用できません');
+            }
+        }
+
+        // 音選択パネルの表示切り替え
+        function toggleSoundTest() {
+            const panel = document.getElementById('sound-test-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // 音のテスト再生
+        function testSound(type) {
+            selectedSoundType = type;
+            const soundNames = ['音なし', 'ピンポン', 'シンプル', 'ピアノ', '木琴', 'ドレミ', 'ビープ'];
+            document.getElementById('selected-sound').textContent = soundNames[type];
+            
+            // 設定を保存
+            saveSettingsToLocal();
+            
+            if (type > 0) {
+                playSuccessSound();
+            }
+        }
+
+        // 正解音を再生（新パターン）
+        function playSuccessSound() {
+            if (!audioContext || selectedSoundType === 0) return;
+            
+            switch (selectedSoundType) {
+                case 1: // ピンポン（既存）
+                    playPingPong();
+                    break;
+                case 2: // シンプル
+                    playSimple();
+                    break;
+                case 3: // ピアノ
+                    playPiano();
+                    break;
+                case 4: // 木琴
+                    playXylophone();
+                    break;
+                case 5: // ドレミ
+                    playDoReMi();
+                    break;
+                case 6: // ビープ
+                    playBeep();
+                    break;
+            }
+        }
+
+        // パターン1: ピンポン（そのまま）
+        function playPingPong() {
+            const osc1 = audioContext.createOscillator();
+            const osc2 = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc1.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            osc2.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
+            
+            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+            
+            osc1.start(audioContext.currentTime);
+            osc2.start(audioContext.currentTime);
+            osc1.stop(audioContext.currentTime + 0.3);
+            osc2.stop(audioContext.currentTime + 0.3);
+        }
+
+        // パターン2: シンプル
+        function playSimple() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(600, audioContext.currentTime);
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.2);
+        }
+
+        // パターン3: ピアノ風
+        function playPiano() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            osc.type = 'triangle';
+            
+            gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.4);
+        }
+
+        // パターン4: 木琴風
+        function playXylophone() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(1046.5, audioContext.currentTime); // C6
+            osc.type = 'square';
+            
+            gain.gain.setValueAtTime(0.06, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.15);
+        }
+
+        // パターン5: ドレミ
+        function playDoReMi() {
+            const frequencies = [523.25, 587.33, 659.25]; // C-D-E
+            frequencies.forEach((freq, i) => {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.frequency.setValueAtTime(freq, audioContext.currentTime + i * 0.08);
+                osc.type = 'sine';
+                
+                gain.gain.setValueAtTime(0.06, audioContext.currentTime + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.08 + 0.12);
+                
+                osc.start(audioContext.currentTime + i * 0.08);
+                osc.stop(audioContext.currentTime + i * 0.08 + 0.12);
+            });
+        }
+
+        // パターン6: ビープ
+        function playBeep() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(800, audioContext.currentTime);
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.1);
+        }
+
         // 文字が半角英数字かどうかを判定
         function isHalfWidth(char) {
             return /^[a-zA-Z0-9]$/.test(char);
@@ -467,6 +667,7 @@
         function initialize() {
             bindEvents();
             initSpeech();
+            initAudio(); // 音響効果を初期化
             loadTextList();
             loadSavedText();
             loadSavedSettings(); // 設定値を復元
@@ -853,6 +1054,9 @@
             if (userAnswer === correctAnswer) {
                 console.log('正解！次の問題を探します...');
                 
+                // 正解音を再生
+                playSuccessSound();
+                
                 // 次の問題を先に探す（hidePopup前に）
                 const nextProblem = findNextHiddenProblem();
                 
@@ -1100,7 +1304,8 @@
                 maskRate: elements.maskRateSlider.value,
                 speechEnabled: elements.speechToggle.checked,
                 autopauseEnabled: elements.autopauseToggle.checked,
-                pageCount: elements.pageCountSelect.value
+                pageCount: elements.pageCountSelect.value,
+                soundType: selectedSoundType
             };
             localStorage.setItem('gijutsushiSettings_integrated', JSON.stringify(settings));
         }
@@ -1257,6 +1462,16 @@
                     // ページ数を復元
                     if (settings.pageCount) {
                         elements.pageCountSelect.value = settings.pageCount;
+                    }
+                    
+                    // 音設定を復元
+                    if (settings.soundType !== undefined) {
+                        selectedSoundType = settings.soundType;
+                        const soundNames = ['音なし', 'ピンポン', 'シンプル', 'ピアノ', '木琴', 'ドレミ', 'ビープ'];
+                        const soundElement = document.getElementById('selected-sound');
+                        if (soundElement) {
+                            soundElement.textContent = soundNames[selectedSoundType];
+                        }
                     }
                 } catch (error) {
                     console.error('設定読み込みエラー:', error);
