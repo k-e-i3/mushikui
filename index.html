@@ -775,6 +775,26 @@
             state.currentEditingProblem = null;
         }
 
+        // 次の虫食い問題を見つける
+        function findNextHiddenProblem() {
+            const currentWordIndex = state.currentWordIndex;
+            
+            // 現在位置以降で隠されている問題を探す
+            for (let wordIndex = currentWordIndex + 1; wordIndex < getWordCount(); wordIndex++) {
+                if (isWordHidden(wordIndex)) {
+                    const wordCells = getWordCells(wordIndex);
+                    if (wordCells.length > 0 && wordCells[0].dataset.problemId) {
+                        const problemId = parseInt(wordCells[0].dataset.problemId);
+                        const problem = state.problems[problemId];
+                        if (problem && problem.cells.some(cell => cell.classList.contains('hidden'))) {
+                            return { wordIndex, problem };
+                        }
+                    }
+                }
+            }
+            return null;
+        }
+
         // 答え確認
         function submitAnswer() {
             if (!state.currentEditingProblem) return;
@@ -795,14 +815,35 @@
                 });
                 hidePopup();
                 
-                if (state.isPlaying) {
-                    // 再生中なら少し待ってから続行
-                    setTimeout(() => {
-                        if (state.isPlaying) {
-                            state.timer = setTimeout(tick, 500);
+                // 次の虫食い問題を自動で表示
+                setTimeout(() => {
+                    const nextProblem = findNextHiddenProblem();
+                    if (nextProblem) {
+                        // 次の問題があれば自動でポップアップ
+                        // 現在の位置を次の問題の位置に更新
+                        if (state.currentWordIndex < nextProblem.wordIndex) {
+                            // 前の単語のハイライトを削除
+                            removeWordHighlight(state.currentWordIndex);
+                            // 新しい位置に移動
+                            state.currentWordIndex = nextProblem.wordIndex;
+                            // 新しい位置をハイライト
+                            highlightWord(state.currentWordIndex);
                         }
-                    }, 200);
-                }
+                        
+                        state.currentEditingProblem = nextProblem.problem;
+                        showPopup(nextProblem.problem);
+                    } else {
+                        // 全ての問題が解決されたら再生を継続
+                        if (elements.autopauseToggle.checked) {
+                            setTimeout(() => {
+                                if (!state.isPlaying) {
+                                    play();
+                                }
+                            }, 500);
+                        }
+                    }
+                }, 300);
+                
             } else {
                 // 不正解
                 elements.feedbackMessage.textContent = `不正解です。正解は「${correctAnswer}」`;
@@ -885,10 +926,21 @@
             // 虫食い部分で一時停止するかチェック
             if (elements.autopauseToggle.checked && isWordHidden(state.currentWordIndex)) {
                 pause();
-                // 該当するセルをクリックして編集開始
-                const wordCells = getWordCells(state.currentWordIndex);
-                if (wordCells.length > 0) {
-                    handleCellClick({ target: wordCells[0] });
+                
+                // 読み上げONの場合は自動でポップアップ表示
+                if (elements.speechToggle.checked) {
+                    setTimeout(() => {
+                        const wordCells = getWordCells(state.currentWordIndex);
+                        if (wordCells.length > 0) {
+                            handleCellClick({ target: wordCells[0] });
+                        }
+                    }, 1000); // 読み上げ完了を待つ
+                } else {
+                    // 読み上げOFFの場合は従来通り
+                    const wordCells = getWordCells(state.currentWordIndex);
+                    if (wordCells.length > 0) {
+                        handleCellClick({ target: wordCells[0] });
+                    }
                 }
             } else {
                 state.timer = setTimeout(tick, state.speed);
