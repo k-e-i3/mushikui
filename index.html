@@ -454,18 +454,24 @@
             initSpeech();
             loadTextList();
             loadSavedText();
+            loadSavedSettings(); // 設定値を復元
             initializeGrid();
         }
 
         // イベントバインディング
         function bindEvents() {
             elements.textInput.addEventListener('input', debounce(handleTextInput, 500));
-            elements.pageCountSelect.addEventListener('change', initializeGrid);
+            elements.pageCountSelect.addEventListener('change', () => {
+                initializeGrid();
+                saveSettingsToLocal();
+            });
             elements.textSelect.addEventListener('change', (e) => loadTextContent(e.target.value));
             elements.maskRateSlider.addEventListener('input', updateMaskRate);
             elements.playPauseBtn.addEventListener('click', togglePlay);
             elements.resetBtn.addEventListener('click', resetAll);
             elements.speedSlider.addEventListener('input', updateSpeed);
+            elements.speechToggle.addEventListener('change', saveSettingsToLocal);
+            elements.autopauseToggle.addEventListener('change', saveSettingsToLocal);
             
             // ポップアップ関連
             elements.submitBtn.addEventListener('click', submitAnswer);
@@ -962,11 +968,13 @@
             state.maskRate = parseFloat(elements.maskRateSlider.value) / 100;
             elements.maskRateValue.textContent = elements.maskRateSlider.value;
             updateManuscript();
+            saveSettingsToLocal();
         }
 
         function updateSpeed() {
             state.speed = parseFloat(elements.speedSlider.value) * 1000;
             elements.speedValue.textContent = elements.speedSlider.value;
+            saveSettingsToLocal();
         }
 
         function resetAll() {
@@ -994,10 +1002,60 @@
             localStorage.setItem('gijutsushiText_integrated', elements.textInput.value);
         }
 
+        function saveSettingsToLocal() {
+            const settings = {
+                speed: elements.speedSlider.value,
+                maskRate: elements.maskRateSlider.value,
+                speechEnabled: elements.speechToggle.checked,
+                autopauseEnabled: elements.autopauseToggle.checked,
+                pageCount: elements.pageCountSelect.value
+            };
+            localStorage.setItem('gijutsushiSettings_integrated', JSON.stringify(settings));
+        }
+
         function loadSavedText() {
             const saved = localStorage.getItem('gijutsushiText_integrated');
             if (saved) {
                 elements.textInput.value = saved;
+            }
+        }
+
+        function loadSavedSettings() {
+            const savedSettings = localStorage.getItem('gijutsushiSettings_integrated');
+            if (savedSettings) {
+                try {
+                    const settings = JSON.parse(savedSettings);
+                    
+                    // 速度設定を復元
+                    if (settings.speed) {
+                        elements.speedSlider.value = settings.speed;
+                        state.speed = parseFloat(settings.speed) * 1000;
+                        elements.speedValue.textContent = settings.speed;
+                    }
+                    
+                    // 虫食い率を復元
+                    if (settings.maskRate !== undefined) {
+                        elements.maskRateSlider.value = settings.maskRate;
+                        state.maskRate = parseFloat(settings.maskRate) / 100;
+                        elements.maskRateValue.textContent = settings.maskRate;
+                    }
+                    
+                    // チェックボックスを復元
+                    if (settings.speechEnabled !== undefined) {
+                        elements.speechToggle.checked = settings.speechEnabled;
+                    }
+                    
+                    if (settings.autopauseEnabled !== undefined) {
+                        elements.autopauseToggle.checked = settings.autopauseEnabled;
+                    }
+                    
+                    // ページ数を復元
+                    if (settings.pageCount) {
+                        elements.pageCountSelect.value = settings.pageCount;
+                    }
+                } catch (error) {
+                    console.error('設定読み込みエラー:', error);
+                }
             }
         }
 
