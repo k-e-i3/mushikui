@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>最終統合版：論文習熟支援ツール</title>
+    <style>
+        :root {
+            --base-color: #4169E1; --highlight-color: #FFF1AB; --danger-color: #DC143C;
+            --editing-color: #d1e7fd;
+        }
+        /* ... CSSは変更なし ... */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Yu Mincho', '游明朝', serif; background-color: #f0f0f0; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background-color: white; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        .controls-container { display: flex; flex-direction: column; gap: 10px; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 15px; }
+        .controls { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; }
+        .control-group { display: flex; gap: 8px; align-items: center; }
+        label { font-weight: bold; font-size: 14px; cursor: pointer; }
+        select, button, input[type="range"] { padding: 6px 12px; border: 1px solid #ccc; border-radius: 5px; font-size: 14px; cursor: pointer; }
+        button.primary { background-color: var(--base-color); color: white; border-color: var(--base-color); }
+        .input-area { width: 100%; margin: 15px 0; }
+        .input-area textarea { width: 100%; height: 100px; font-size: 16px; padding: 10px; border: 2px solid var(--base-color); border-radius: 5px; }
+        .prompter-view { position: relative; border: 1px solid #ccc; margin-top: 15px; padding: 10px; }
+        .manuscript-paper { position: relative; width: fit-content; margin: 0 auto; }
+        .page { margin-bottom: 30px; }
+        .grid { display: grid; grid-template-columns: repeat(24, 30px); grid-auto-rows: 30px; border: 2px solid var(--base-color); }
+        .cell { width: 30px; height: 30px; border: 1px solid var(--base-color); display: flex; align-items: center; justify-content: center; font-size: 20px; position: relative; background-color: white; transition: background-color 0.3s, color 0.3s; }
+        .cell.highlight { background-color: var(--highlight-color); }
+        .cell.hidden { color: transparent; background-color: #eee; cursor: pointer; }
+        .cell.revealed { color: black; background-color: #e8f5e9; }
+        .cell.editing { background-color: var(--editing-color); }
+        .cell .end-punctuation { position: absolute; top: 2px; right: 2px; font-size: 12px; color: #FF1493; font-weight: bold; }
+        #inline-editor { display: none; position: absolute; background-color: white; border: 2px solid var(--base-color); border-radius: 8px; padding: 10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2); z-index: 1000; min-width: 250px; }
+        #inline-editor.incorrect-feedback { animation: shake 0.5s; border-color: var(--danger-color); }
+        @keyframes shake { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-5px); } }
+        #inline-input-wrapper { display: flex; gap: 5px; }
+        #inline-input { width: 100%; border: 1px solid #ccc; padding: 8px; font-size: 16px; }
+        #feedback-div { position: absolute; bottom: -25px; left: 50%; transform: translateX(-50%); font-size: 14px; color: var(--danger-color); background-color: white; padding: 2px 8px; border-radius: 3px; white-space: nowrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+       <div class="controls-container">
+            <div class="controls"><div class="control-group"><button id="playPauseBtn" class="primary">再生</button><label>速度:</label><input type="range" id="speed-slider" min="0.1" max="3" step="0.1" value="0.8" style="width: 80px;"><span id="speed-value">0.8</span>s</div><div class="control-group"><input type="checkbox" id="speech-toggle"><label for="speech-toggle">読上</label></div><div class="control-group"><input type="checkbox" id="autopause-toggle" checked><label for="autopause-toggle">虫食いで一時停止</label></div></div>
+            <div class="controls"><div class="control-group"><label for="text-select">テキスト選択:</label><select id="text-select"></select></div><div class="control-group"><label for="mask-rate-slider">虫食い率(%):</label><input type="range" id="mask-rate-slider" min="0" max="80" value="30"><span id="mask-rate-value">30</span></div><div class="control-group"><button id="resetBtn">虫食いリセット</button></div><div class="control-group"><label for="pageCount">枚数:</label><select id="pageCount"><option value="1">1枚</option><option value="2">2枚</option><option value="3" selected>3枚</option><option value="4">4枚</option><option value="5">5枚</option><option value="6">6枚</option><option value="7">7枚</option><option value="8">8枚</option><option value="9">9枚</option><option value="10">10枚</option></select></div></div>
+        </div>
+        <div class="input-area"><textarea id="textInput" placeholder="..."></textarea></div>
+        <div class="prompter-view"><div class="manuscript-paper" id="manuscriptPaper"></div></div>
+    </div>
+    <div id="inline-editor">
+        <div id="inline-input-wrapper">
+            <input type="text" id="inline-input" autocomplete="off"><button id="inline-submit">確定</button>
+        </div>
+        <div id="feedback-div"></div>
+    </div>
+
+<script>
+    // --- DOM要素取得 ---
+    const allDOMElements = {
+        textInput: document.getElementById('textInput'), manuscriptPaper: document.getElementById('manuscriptPaper'),
+        pageCountSelect: document.getElementById('pageCount'), maskRateSlider: document.getElementById('mask-rate-slider'),
+        maskRateValue: document.getElementById('mask-rate-value'), textSelect: document.getElementById('text-select'),
+        resetBtn: document.getElementById('resetBtn'), playPauseBtn: document.getElementById('playPauseBtn'),
+        speedSlider: document.getElementById('speed-slider'), speedValue: document.getElementById('speed-value'),
+        speechToggle: document.getElementById('speech-toggle'), autopauseToggle: document.getElementById('autopause-toggle'),
+        inlineEditor: document.getElementById('inline-editor'), inlineInput: document.getElementById('inline-input'),
+        inlineSubmit: document.getElementById('inline-submit'), feedbackDiv: document.getElementById('feedback-div'),
+    };
+
+    // --- 状態管理 ---
+    let state = { /* ... 変更なし ... */ };
+
+    // --- 初期化とイベント設定 ---
+    function initialize() { /* ... 変更なし ... */ }
+    function bindEvents() { /* ... 変更なし ... */ }
+
+    // --- ★★★ メインロジック (句読点処理と単語認識を統合) ★★★ ---
+    function updateManuscript() {
+        pause();
+        hideInlineEditor();
+        state.currentWordIndex = -1;
+        
+        const text = allDOMElements.textInput.value;
+        const allCells = Array.from(allDOMElements.manuscriptPaper.querySelectorAll('.cell'));
+        
+        // --- 1. 単語情報の事前解析 ---
+        state.words = [];
+        const tokens = text.match(/[\p{L}\p{N}]+|[、。、「」（）『』]|./gu) || [];
+        for(const token of tokens) {
+            // 改行文字は単語として扱わない
+            if (token !== '\n') {
+                state.words.push({ text: token, cells: [] });
+            }
+        }
+        
+        // --- 2. セルへのレンダリング (句読点処理を組み込み) ---
+        allCells.forEach(cell => {
+            cell.textContent = '';
+            cell.className = 'cell';
+            const endPunc = cell.querySelector('.end-punctuation');
+            if (endPunc) endPunc.remove();
+            delete cell.dataset.wordIndex;
+        });
+
+        let cellIndex = 0;
+        let textIndex = 0;
+        let wordIndex = 0;
+
+        const isPunctuation = (char) => /^[、。]$/.test(char);
+
+        while (textIndex < text.length && cellIndex < allCells.length) {
+            let currentToken = state.words[wordIndex];
+            const char = text[textIndex];
+            const currentCol = (cellIndex % 600) % 24;
+
+            if (char === '\n') {
+                if (cellIndex > 0 && cellIndex % 24 === 0) {
+                    textIndex++; continue;
+                }
+                const currentPage = Math.floor(cellIndex / 600);
+                const currentPageRow = Math.floor((cellIndex % 600) / 24);
+                cellIndex = currentPage * 600 + (currentPageRow + 1) * 24;
+                textIndex++;
+                continue;
+            }
+
+            const nextChar = textIndex + 1 < text.length ? text[textIndex + 1] : null;
+
+            // 行末の句読点処理
+            if (currentCol === 23 && nextChar && isPunctuation(nextChar)) {
+                allCells[cellIndex].textContent = char;
+                allCells[cellIndex].dataset.wordIndex = wordIndex;
+                state.words[wordIndex].cells.push(allCells[cellIndex]);
+
+                const punctuationSpan = document.createElement('span');
+                punctuationSpan.className = 'end-punctuation';
+                punctuationSpan.textContent = nextChar;
+                allCells[cellIndex].appendChild(punctuationSpan);
+                
+                // 次の単語（句読点）にもセル情報を関連付ける
+                if (state.words[wordIndex + 1]?.text === nextChar) {
+                    state.words[wordIndex + 1].cells.push(allCells[cellIndex]);
+                }
+                
+                textIndex += 2;
+                wordIndex += 2; // 文字と句読点の2つ分進める
+                
+                if (textIndex < text.length && text[textIndex] === '\n') textIndex++;
+                
+                const currentPage = Math.floor(cellIndex / 600);
+                const currentPageRow = Math.floor((cellIndex % 600) / 24);
+                cellIndex = currentPage * 600 + (currentPageRow + 1) * 24;
+                continue;
+            }
+
+            // 通常の文字処理
+            allCells[cellIndex].textContent = char;
+            allCells[cellIndex].dataset.wordIndex = wordIndex;
+            currentToken.cells.push(allCells[cellIndex]);
+
+            // 現在の文字が現在のトークンの最後の文字かチェック
+            if (currentToken.cells.reduce((acc, cell) => acc + cell.textContent.length, 0) >= currentToken.text.length) {
+                 wordIndex++;
+            }
+            
+            textIndex++;
+            cellIndex++;
+        }
+
+        // --- 3. 虫食い処理 ---
+        state.words.forEach(word => {
+            if (state.maskRate > 0 && Math.random() < state.maskRate && /[\p{L}\p{N}]{2,}/u.test(word.text)) {
+                word.cells.forEach(cell => cell.classList.add('hidden'));
+            }
+        });
+    }
+
+    // --- インライン解答機能 (頭出しヒント形式に改修) ---
+    function handleCellClick(event) {
+        // ... 前提条件のチェック ...
+        const cell = event.target;
+        if (cell.classList.contains('cell') && cell.dataset.wordIndex) {
+            hideInlineEditor(); 
+            const wordIndex = parseInt(cell.dataset.wordIndex, 10);
+            
+            const prevWord = state.words[wordIndex - 1] || { text: '' };
+            const targetWord = state.words[wordIndex];
+            const nextWord = state.words[wordIndex + 1] || { text: '' };
+
+            if (!targetWord || !targetWord.cells.some(c => c.classList.contains('hidden'))) {
+                 // 虫食いではない単語は解答不要
+                 return;
+            }
+
+            // 解答範囲のセルをハイライト
+            targetWord.cells.forEach(c => c.classList.add('editing'));
+            
+            state.currentCorrectAnswer = `${prevWord.text}${targetWord.text}${nextWord.text}`;
+            
+            // ★頭出しヒントを作成
+            let hint = '';
+            if (targetWord.text.length > 2) {
+                hint = targetWord.text[0] + '〇'.repeat(targetWord.text.length - 2) + targetWord.text.slice(-1);
+            } else {
+                hint = '〇'.repeat(targetWord.text.length);
+            }
+            const questionText = `${prevWord.text}${hint}${nextWord.text}`;
+            
+            state.currentEditingWordIndex = wordIndex;
+            showInlineEditor(targetWord.cells[0], questionText, targetWord.text);
+        }
+    }
+
+    function showInlineEditor(targetCell, questionText, originalWord) {
+        const { inlineEditor, inlineInput, feedbackDiv } = allDOMElements;
+        inlineInput.value = questionText;
+        // ... ポップアップ表示位置の計算 ...
+        const rect = targetCell.getBoundingClientRect();
+        inlineEditor.style.display = 'block';
+        inlineEditor.style.top = `${window.scrollY + rect.top - inlineEditor.offsetHeight - 8}px`;
+        inlineEditor.style.left = `${window.scrollX + rect.left + (rect.width / 2) - (inlineEditor.offsetWidth / 2)}px`;
+        
+        feedbackDiv.textContent = '';
+        inlineInput.focus();
+    }
+    
+    function handleSubmitAnswer() {
+        if (state.currentEditingWordIndex === -1) return;
+        const userAnswer = allDOMElements.inlineInput.value.trim();
+        const correctAnswer = state.currentCorrectAnswer.trim();
+
+        if (userAnswer === correctAnswer) {
+            state.words[state.currentEditingWordIndex].cells.forEach(cell => {
+                cell.classList.remove('hidden'); cell.classList.add('revealed');
+            });
+            hideInlineEditor();
+            if (state.isPlaying) { state.timer = setTimeout(tick, 200); }
+        } else {
+            // ... 不正解処理 ...
+            allDOMElements.feedbackDiv.textContent = `正解は「${correctAnswer}」`;
+            allDOMElements.inlineEditor.classList.add('incorrect-feedback');
+            allDOMElements.inlineInput.select();
+            setTimeout(() => { allDOMElements.inlineEditor.classList.remove('incorrect-feedback'); }, 500);
+        }
+    }
+    
+    // --- その他の全関数 (省略なし) ---
+    state = { words: [], isPlaying: false, currentWordIndex: -1, timer: null, speed: 800, voices: [], currentEditingWordIndex: -1, maskRate: 0.3, currentCorrectAnswer: '' };
+    initialize = function() { bindEvents(); initSpeech(); loadTextList(); loadSavedText(); };
+    bindEvents = function() { const { textInput, pageCountSelect, textSelect, maskRateSlider, resetBtn, playPauseBtn, speedSlider, inlineSubmit, inlineInput } = allDOMElements; pageCountSelect.addEventListener('change', initializeGrid); textInput.addEventListener('input', debounce(handleTextInput, 500)); textSelect.addEventListener('change', (e) => loadTextContent(e.target.value)); maskRateSlider.addEventListener('input', (e) => { state.maskRate = parseFloat(e.target.value) / 100; allDOMElements.maskRateValue.textContent = e.target.value; updateManuscript(); }); resetBtn.addEventListener('click', () => updateManuscript()); playPauseBtn.addEventListener('click', togglePlay); speedSlider.addEventListener('input', (e) => { state.speed = parseFloat(e.target.value) * 1000; allDOMElements.speedValue.textContent = e.target.value; }); inlineSubmit.addEventListener('click', handleSubmitAnswer); inlineInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') handleSubmitAnswer(); if (e.key === 'Escape') hideInlineEditor(); }); document.addEventListener('click', (e) => { if (!allDOMElements.inlineEditor.contains(e.target) && !e.target.closest('.cell')) { hideInlineEditor(); } }); };
+    initializeGrid = function() { const { manuscriptPaper, pageCountSelect } = allDOMElements; manuscriptPaper.innerHTML = ''; const pageCount = parseInt(pageCountSelect.value, 10); for (let pageNum = 0; pageNum < pageCount; pageNum++) { const pageDiv = document.createElement('div'); pageDiv.className = 'page'; const gridDiv = document.createElement('div'); gridDiv.className = 'grid'; for (let i = 0; i < 600; i++) { const cell = document.createElement('div'); cell.className = 'cell'; cell.addEventListener('click', handleCellClick); gridDiv.appendChild(cell); } pageDiv.appendChild(gridDiv); manuscriptPaper.appendChild(pageDiv); } updateManuscript(); };
+    togglePlay = function() { state.isPlaying ? pause() : play(); };
+    play = function() { if (state.words.length === 0) return; state.isPlaying = true; allDOMElements.playPauseBtn.textContent = '一時停止'; if (state.currentWordIndex >= state.words.length - 1) { state.currentWordIndex = -1; } tick(); };
+    pause = function() { state.isPlaying = false; allDOMElements.playPauseBtn.textContent = '再生'; clearTimeout(state.timer); };
+    tick = function() { if (!state.isPlaying) return; if (state.currentWordIndex >= 0) { state.words[state.currentWordIndex]?.cells.forEach(c => c.classList.remove('highlight')); } state.currentWordIndex++; if (state.currentWordIndex >= state.words.length) { pause(); return; } const currentWord = state.words[state.currentWordIndex]; currentWord.cells.forEach(c => c.classList.add('highlight')); speakCurrentWord(); const isHiddenWord = currentWord.cells.some(c => c.classList.contains('hidden')); if (isHiddenWord && allDOMElements.autopauseToggle.checked) { handleCellClick({ target: currentWord.cells[0] }); pause(); } else { state.timer = setTimeout(tick, state.speed); } };
+    hideInlineEditor = function() { document.querySelectorAll('.cell.editing').forEach(c => c.classList.remove('editing')); allDOMElements.inlineEditor.style.display = 'none'; state.currentEditingWordIndex = -1; state.currentCorrectAnswer = ''; };
+    initSpeech = function() { if ('speechSynthesis' in window) { speechSynthesis.onvoiceschanged = () => { state.voices = speechSynthesis.getVoices().filter(v => v.lang === 'ja-JP'); }; } else { allDOMElements.speechToggle.parentElement.style.display = 'none'; } };
+    speakCurrentWord = function() { if (!allDOMElements.speechToggle.checked || !('speechSynthesis' in window)) return; const currentWord = state.words[state.currentWordIndex]; if (!currentWord) return; const utterance = new SpeechSynthesisUtterance(currentWord.text); utterance.lang = 'ja-JP'; if (state.voices.length > 0) utterance.voice = state.voices[0]; speechSynthesis.speak(utterance); };
+    debounce = function(func, delay) { let timeout; return function(...args) { clearTimeout(timeout); timeout = setTimeout(() => func.apply(this, args), delay); }; };
+    handleTextInput = function() { updateManuscript(); saveTextToLocal(); };
+    saveTextToLocal = function() { localStorage.setItem('gijutsushiText_vFinalComplete', allDOMElements.textInput.value); };
+    loadSavedText = function() { const saved = localStorage.getItem('gijutsushiText_vFinalComplete'); if (saved) allDOMElements.textInput.value = saved; initializeGrid(); };
+    loadTextList = async function() { const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/index.json?t=${new Date().getTime()}`; try { const response = await fetch(url, { cache: "no-store" }); if (!response.ok) return; const fileList = await response.json(); allDOMElements.textSelect.innerHTML = '<option value="">GitHubから選択...</option>'; fileList.forEach(fileName => { const option = document.createElement('option'); option.value = fileName; option.textContent = fileName.replace('.txt', ''); allDOMElements.textSelect.appendChild(option); }); } catch (error) { console.error(error); } };
+    loadTextContent = async function(fileName) { if (!fileName) return; const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/${fileName}?t=${new Date().getTime()}`; try { const response = await fetch(url, { cache: "no-store" }); if (!response.ok) return; const text = await response.text(); allDOMElements.textInput.value = text; handleTextInput(); } catch (error) { allDOMElements.textInput.value = error.message; } };
+    
+    initialize();
+</script>
+</body>
+</html>
