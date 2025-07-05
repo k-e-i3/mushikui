@@ -37,44 +37,53 @@
         .controls-container {
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            border-bottom: 2px solid #eee;
-            padding-bottom: 20px;
-            margin-bottom: 20px;
+            gap: 5px;
+            background-color: white;
+            padding: 12px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
         }
 
         .controls {
             display: flex;
             flex-wrap: wrap;
-            gap: 15px;
+            gap: 8px;
             align-items: center;
         }
 
         .control-group {
             display: flex;
-            gap: 8px;
+            gap: 4px;
             align-items: center;
         }
 
         label {
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
             cursor: pointer;
         }
 
         select, button, input[type="range"] {
-            padding: 6px 12px;
+            padding: 4px 8px;
             border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 14px;
+            border-radius: 4px;
+            font-size: 13px;
             cursor: pointer;
             font-family: inherit;
+        }
+
+        #textSelect {
+            width: 120px;
         }
 
         button.primary {
             background-color: var(--base-color);
             color: white;
             border-color: var(--base-color);
+            min-width: 60px;
         }
 
         button.primary:hover {
@@ -83,14 +92,14 @@
 
         .input-area {
             width: 100%;
-            margin: 15px 0;
+            margin: 10px 0;
         }
 
         .input-area textarea {
             width: 100%;
-            height: 120px;
-            font-size: 16px;
-            padding: 10px;
+            height: 80px;
+            font-size: 14px;
+            padding: 8px;
             border: 2px solid var(--base-color);
             border-radius: 5px;
             font-family: inherit;
@@ -201,13 +210,13 @@
             display: none;
             position: absolute;
             background-color: white;
-            border: 3px solid var(--base-color);
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            border: 2px solid var(--base-color);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
             z-index: 1000;
-            min-width: 300px;
-            max-width: 600px;
+            min-width: 250px;
+            max-width: 500px;
         }
 
         #popup-editor.incorrect-feedback {
@@ -217,60 +226,61 @@
 
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-8px); }
-            50% { transform: translateX(8px); }
-            75% { transform: translateX(-8px); }
+            25% { transform: translateX(-6px); }
+            50% { transform: translateX(6px); }
+            75% { transform: translateX(-6px); }
         }
 
         .context-display {
-            font-size: 18px;
-            line-height: 1.6;
-            margin-bottom: 15px;
-            padding: 10px;
+            font-size: 16px;
+            line-height: 1.4;
+            margin-bottom: 10px;
+            padding: 8px;
             background-color: #f8f9fa;
-            border-radius: 6px;
+            border-radius: 4px;
             text-align: center;
         }
 
         .answer-blank {
             display: inline-block;
             border-bottom: 2px solid var(--base-color);
-            min-width: 40px;
-            margin: 0 4px;
+            min-width: 30px;
+            margin: 0 3px;
             text-align: center;
             background-color: white;
-            padding: 2px 4px;
+            padding: 1px 3px;
         }
 
         #popup-input {
             width: 100%;
-            padding: 12px;
-            font-size: 18px;
+            padding: 8px;
+            font-size: 16px;
             border: 2px solid #ccc;
-            border-radius: 6px;
+            border-radius: 4px;
             text-align: center;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
             font-family: inherit;
         }
 
         .popup-buttons {
             display: flex;
-            gap: 10px;
+            gap: 6px;
             justify-content: center;
         }
 
         .popup-buttons button {
-            padding: 10px 20px;
-            font-size: 16px;
-            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 4px;
         }
 
         #feedback-message {
-            margin-top: 10px;
-            padding: 8px;
-            border-radius: 4px;
+            margin-top: 8px;
+            padding: 6px;
+            border-radius: 3px;
             text-align: center;
             font-weight: bold;
+            font-size: 13px;
         }
 
         #feedback-message.error {
@@ -320,42 +330,35 @@
 <body>
     <div class="container">
         <div class="controls-container">
-            <!-- 再生・速度コントロール -->
+            <!-- 全コントロールを1行に -->
             <div class="controls">
                 <div class="control-group">
                     <button id="playPauseBtn" class="primary">再生</button>
-                    <button id="resetBtn">リセット</button>
                 </div>
                 <div class="control-group">
                     <label>速度:</label>
-                    <input type="range" id="speedSlider" min="0.1" max="5" step="0.1" value="1.0" style="width: 80px;">
+                    <input type="range" id="speedSlider" min="0.1" max="7" step="0.1" value="1.0" style="width: 60px;">
                     <span id="speedValue">1.0</span>s
                 </div>
                 <div class="control-group">
                     <input type="checkbox" id="speechToggle">
-                    <label for="speechToggle">読み上げ</label>
+                    <label for="speechToggle">読</label>
                 </div>
                 <div class="control-group">
                     <input type="checkbox" id="autopauseToggle" checked>
-                    <label for="autopauseToggle">虫食いで一時停止</label>
+                    <label for="autopauseToggle">虫停</label>
                 </div>
-            </div>
-
-            <!-- 虫食い・設定コントロール -->
-            <div class="controls">
                 <div class="control-group">
-                    <label for="textSelect">テキスト選択:</label>
                     <select id="textSelect">
                         <option value="">GitHubから選択...</option>
                     </select>
                 </div>
                 <div class="control-group">
-                    <label>虫食い率:</label>
-                    <input type="range" id="maskRateSlider" min="0" max="80" value="30" style="width: 80px;">
+                    <label>虫食い:</label>
+                    <input type="range" id="maskRateSlider" min="0" max="100" value="30" style="width: 60px;">
                     <span id="maskRateValue">30</span>%
                 </div>
                 <div class="control-group">
-                    <label for="pageCount">枚数:</label>
                     <select id="pageCount">
                         <option value="1">1枚</option>
                         <option value="2">2枚</option>
@@ -378,6 +381,17 @@
 
         <div class="counter">
             文字数: <span id="charCount">0</span> / <span id="maxChars">1800</span>
+            <button onclick="toggleMistakeLog()" style="margin-left: 15px; padding: 4px 8px; font-size: 12px;">間違いログ</button>
+        </div>
+
+        <!-- 間違いログパネル -->
+        <div id="mistake-log-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin-bottom: 10px; color: #dc3545;">?? 間違いログ</h3>
+            <div id="mistake-list"></div>
+            <div style="margin-top: 10px;">
+                <button onclick="clearMistakeLog()" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">ログクリア</button>
+                <button onclick="mistakeOnlyMode()" style="background-color: #ffc107; color: black; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; margin-left: 5px;">苦手問題のみ</button>
+            </div>
         </div>
 
         <div class="manuscript-paper" id="manuscriptPaper">
@@ -407,7 +421,6 @@
             maskRateSlider: document.getElementById('maskRateSlider'),
             maskRateValue: document.getElementById('maskRateValue'),
             playPauseBtn: document.getElementById('playPauseBtn'),
-            resetBtn: document.getElementById('resetBtn'),
             speedSlider: document.getElementById('speedSlider'),
             speedValue: document.getElementById('speedValue'),
             speechToggle: document.getElementById('speechToggle'),
@@ -432,8 +445,10 @@
             maskRate: 0.3,
             voices: [],
             currentEditingProblem: null,
+            currentEditingProblemIndex: -1,
             problems: [],
-            characterData: []
+            characterData: [],
+            mistakeLog: [] // 間違いログ
         };
 
         const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
@@ -455,6 +470,7 @@
             loadTextList();
             loadSavedText();
             loadSavedSettings(); // 設定値を復元
+            loadMistakeLog(); // 間違いログを読み込み
             initializeGrid();
         }
 
@@ -468,7 +484,6 @@
             elements.textSelect.addEventListener('change', (e) => loadTextContent(e.target.value));
             elements.maskRateSlider.addEventListener('input', updateMaskRate);
             elements.playPauseBtn.addEventListener('click', togglePlay);
-            elements.resetBtn.addEventListener('click', resetAll);
             elements.speedSlider.addEventListener('input', updateSpeed);
             elements.speechToggle.addEventListener('change', saveSettingsToLocal);
             elements.autopauseToggle.addEventListener('change', saveSettingsToLocal);
@@ -693,20 +708,33 @@
                 }
             });
 
-            // 2文字以上の問題のみを採用
-            let finalProblemId = 0;
+            // 3文字以上7文字以下の問題のみを採用し、文字位置順にソート
+            const validProblems = tempProblems.filter(problem => 
+                problem.answer.length >= 3 && problem.answer.length <= 7
+            );
+            validProblems.sort((a, b) => a.startIndex - b.startIndex);
+            
+            // 最終的な問題リストを作成
+            validProblems.forEach((problem, index) => {
+                problem.id = index;
+                state.problems.push(problem);
+                
+                // セルを隠す
+                problem.cells.forEach(cell => {
+                    cell.classList.add('hidden');
+                    cell.textContent = '○';
+                    cell.dataset.problemId = problem.id;
+                    
+                    // 間違えた単語かチェックして赤色表示
+                    if (isMistakenWord(problem.answer)) {
+                        cell.classList.add('mistake');
+                    }
+                });
+            });
+
+            // 1文字の問題は隠さない（元の文字を表示）
             tempProblems.forEach(problem => {
-                if (problem.answer.length >= 2) {
-                    problem.id = finalProblemId++;
-                    state.problems.push(problem);
-                    // セルを隠す
-                    problem.cells.forEach(cell => {
-                        cell.classList.add('hidden');
-                        cell.textContent = '○';
-                        cell.dataset.problemId = problem.id;
-                    });
-                } else {
-                    // 1文字の問題は隠さない（元の文字を表示）
+                if (problem.answer.length < 2) {
                     problem.cells.forEach(cell => {
                         const charIndex = parseInt(cell.dataset.charIndex);
                         const charData = state.characterData[charIndex];
@@ -728,6 +756,7 @@
             if (!problem) return;
 
             state.currentEditingProblem = problem;
+            state.currentEditingProblemIndex = problemId; // インデックスを記録
             showPopup(problem);
         }
 
@@ -773,25 +802,33 @@
             elements.popupEditor.style.display = 'none';
             elements.popupEditor.classList.remove('incorrect-feedback');
             state.currentEditingProblem = null;
+            state.currentEditingProblemIndex = -1;
         }
 
-        // 次の虫食い問題を見つける
+        // 次の虫食い問題を見つける（シンプル版）
         function findNextHiddenProblem() {
-            const currentWordIndex = state.currentWordIndex;
+            // 現在編集中の問題より後にある、まだ隠されている問題を探す
+            let foundCurrent = false;
             
-            // 現在位置以降で隠されている問題を探す
-            for (let wordIndex = currentWordIndex + 1; wordIndex < getWordCount(); wordIndex++) {
-                if (isWordHidden(wordIndex)) {
-                    const wordCells = getWordCells(wordIndex);
-                    if (wordCells.length > 0 && wordCells[0].dataset.problemId) {
-                        const problemId = parseInt(wordCells[0].dataset.problemId);
-                        const problem = state.problems[problemId];
-                        if (problem && problem.cells.some(cell => cell.classList.contains('hidden'))) {
-                            return { wordIndex, problem };
-                        }
+            for (let i = 0; i < state.problems.length; i++) {
+                const problem = state.problems[i];
+                
+                // 現在の問題を見つけた後の問題を探す
+                if (foundCurrent) {
+                    const hasHiddenCells = problem.cells.some(cell => cell.classList.contains('hidden'));
+                    if (hasHiddenCells) {
+                        console.log('次の問題を発見:', problem.answer);
+                        return problem;
                     }
                 }
+                
+                // 現在編集中の問題かチェック
+                if (state.currentEditingProblem && problem.id === state.currentEditingProblem.id) {
+                    foundCurrent = true;
+                }
             }
+            
+            console.log('次の問題なし');
             return null;
         }
 
@@ -803,7 +840,12 @@
             const correctAnswer = state.currentEditingProblem.answer;
 
             if (userAnswer === correctAnswer) {
-                // 正解
+                console.log('正解！次の問題を探します...');
+                
+                // 次の問題を先に探す（hidePopup前に）
+                const nextProblem = findNextHiddenProblem();
+                
+                // 正解処理
                 state.currentEditingProblem.cells.forEach(cell => {
                     cell.classList.remove('hidden', 'editing');
                     cell.classList.add('correct');
@@ -817,35 +859,28 @@
                 
                 // 次の虫食い問題を自動で表示
                 setTimeout(() => {
-                    const nextProblem = findNextHiddenProblem();
                     if (nextProblem) {
+                        console.log('次の問題が見つかりました:', nextProblem.answer);
                         // 次の問題があれば自動でポップアップ
-                        // 現在の位置を次の問題の位置に更新
-                        if (state.currentWordIndex < nextProblem.wordIndex) {
-                            // 前の単語のハイライトを削除
-                            removeWordHighlight(state.currentWordIndex);
-                            // 新しい位置に移動
-                            state.currentWordIndex = nextProblem.wordIndex;
-                            // 新しい位置をハイライト
-                            highlightWord(state.currentWordIndex);
-                        }
-                        
-                        state.currentEditingProblem = nextProblem.problem;
-                        showPopup(nextProblem.problem);
+                        state.currentEditingProblem = nextProblem;
+                        state.currentEditingProblemIndex = nextProblem.id;
+                        showPopup(nextProblem);
                     } else {
-                        // 全ての問題が解決されたら再生を継続
-                        if (elements.autopauseToggle.checked) {
+                        console.log('次の問題が見つかりません');
+                        if (elements.autopauseToggle.checked && !state.isPlaying) {
+                            // 全ての問題が解決されて、かつ再生停止中なら再生を継続
                             setTimeout(() => {
-                                if (!state.isPlaying) {
-                                    play();
-                                }
+                                play();
                             }, 500);
                         }
                     }
                 }, 300);
                 
             } else {
-                // 不正解
+                // 不正解 - 間違いを記録
+                const wrongWord = state.currentEditingProblem.answer;
+                recordMistake(wrongWord, userAnswer, correctAnswer);
+                
                 elements.feedbackMessage.textContent = `不正解です。正解は「${correctAnswer}」`;
                 elements.feedbackMessage.className = 'error';
                 elements.popupEditor.classList.add('incorrect-feedback');
@@ -1029,12 +1064,6 @@
             saveSettingsToLocal();
         }
 
-        function resetAll() {
-            pause();
-            state.currentWordIndex = -1;
-            updateManuscript();
-        }
-
         function initSpeech() {
             if ('speechSynthesis' in window) {
                 speechSynthesis.onvoiceschanged = () => {
@@ -1063,6 +1092,119 @@
                 pageCount: elements.pageCountSelect.value
             };
             localStorage.setItem('gijutsushiSettings_integrated', JSON.stringify(settings));
+        }
+
+        // 間違いログの保存・読み込み
+        function saveMistakeLog() {
+            localStorage.setItem('gijutsushiMistakes_integrated', JSON.stringify(state.mistakeLog));
+        }
+
+        function loadMistakeLog() {
+            const savedMistakes = localStorage.getItem('gijutsushiMistakes_integrated');
+            if (savedMistakes) {
+                try {
+                    state.mistakeLog = JSON.parse(savedMistakes);
+                } catch (error) {
+                    console.error('間違いログ読み込みエラー:', error);
+                    state.mistakeLog = [];
+                }
+            }
+        }
+
+        // 間違いを記録する
+        function recordMistake(word, userAnswer, correctAnswer) {
+            const now = new Date();
+            const mistake = {
+                word: word,
+                userAnswer: userAnswer,
+                correctAnswer: correctAnswer,
+                timestamp: now.toISOString(),
+                date: now.toLocaleDateString('ja-JP')
+            };
+
+            // 既存の間違いがあるかチェック
+            const existingIndex = state.mistakeLog.findIndex(m => m.word === word);
+            if (existingIndex !== -1) {
+                // 既存の間違いに追加
+                if (!state.mistakeLog[existingIndex].attempts) {
+                    state.mistakeLog[existingIndex].attempts = [];
+                }
+                state.mistakeLog[existingIndex].attempts.push(mistake);
+                state.mistakeLog[existingIndex].count = (state.mistakeLog[existingIndex].count || 1) + 1;
+                state.mistakeLog[existingIndex].lastMistake = now.toISOString();
+            } else {
+                // 新しい間違いとして追加
+                state.mistakeLog.push({
+                    word: word,
+                    userAnswer: userAnswer,
+                    correctAnswer: correctAnswer,
+                    count: 1,
+                    firstMistake: now.toISOString(),
+                    lastMistake: now.toISOString(),
+                    attempts: [mistake]
+                });
+            }
+
+            saveMistakeLog();
+            console.log('間違いを記録しました:', word);
+        }
+
+        // 単語が過去に間違えられたかチェック
+        function isMistakenWord(word) {
+            return state.mistakeLog.some(m => m.word === word);
+        }
+
+        // 間違いログパネルの表示切り替え
+        function toggleMistakeLog() {
+            const panel = document.getElementById('mistake-log-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                updateMistakeLogDisplay();
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // 間違いログの表示更新
+        function updateMistakeLogDisplay() {
+            const listElement = document.getElementById('mistake-list');
+            if (state.mistakeLog.length === 0) {
+                listElement.innerHTML = '<p style="color: #28a745;">まだ間違いはありません！</p>';
+                return;
+            }
+
+            // 間違い回数の多い順にソート
+            const sortedMistakes = [...state.mistakeLog].sort((a, b) => b.count - a.count);
+            
+            listElement.innerHTML = sortedMistakes.map(mistake => `
+                <div style="background-color: white; padding: 8px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #dc3545;">
+                    <strong>${mistake.word}</strong> 
+                    <span style="color: #dc3545;">(${mistake.count}回間違い)</span>
+                    <br>
+                    <small style="color: #666;">最後の間違い: ${new Date(mistake.lastMistake).toLocaleString('ja-JP')}</small>
+                </div>
+            `).join('');
+        }
+
+        // 間違いログをクリア
+        function clearMistakeLog() {
+            if (confirm('間違いログをすべて削除しますか？')) {
+                state.mistakeLog = [];
+                saveMistakeLog();
+                updateMistakeLogDisplay();
+                updateManuscript(); // 赤色表示をリセット
+                console.log('間違いログをクリアしました');
+            }
+        }
+
+        // 苦手問題のみモード
+        function mistakeOnlyMode() {
+            if (state.mistakeLog.length === 0) {
+                alert('間違いログがありません');
+                return;
+            }
+            alert('苦手問題のみモード（未実装）\n間違えた単語のみを虫食い表示する機能です');
+            // TODO: 実装予定
         }
 
         function loadSavedText() {
