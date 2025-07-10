@@ -348,7 +348,7 @@
 
                 <div class="control-group">
     <label for="speechRateSlider">読速:</label>
-    <input type="range" id="speechRateSlider" min="0.5" max="2" step="0.1" value="1.0" style="width: 60px;">
+    <input type="range" id="speechRateSlider" min="0.2" max="3" step="0.1" value="0.8" style="width: 60px;">
     <span id="speechRateValue">1.0</span>
 </div>
 
@@ -461,6 +461,8 @@
             submitBtn: document.getElementById('submitBtn'),
             cancelBtn: document.getElementById('cancelBtn'),
             showAnswerBtn: document.getElementById('showAnswerBtn'),
+            speechRateSlider: document.getElementById('speechRateSlider'), // この行を追加
+            speechRateValue: document.getElementById('speechRateValue'), // この行を追加
             feedbackMessage: document.getElementById('feedback-message')
         };
 
@@ -476,6 +478,7 @@
             currentEditingProblemIndex: -1,
             problems: [],
             characterData: [],
+            speechRate: 0.8, // この行を追加
             mistakeLog: [] // 間違いログ
         };
 
@@ -691,6 +694,14 @@
                 initializeGrid();
                 saveSettingsToLocal();
             });
+            
+            // bindEvents関数の中にこのコードを追加
+elements.speechRateSlider.addEventListener('input', () => {
+    state.speechRate = parseFloat(elements.speechRateSlider.value);
+    elements.speechRateValue.textContent = state.speechRate.toFixed(1);
+    saveSettingsToLocal();
+});
+            
             elements.textSelect.addEventListener('change', (e) => loadTextContent(e.target.value));
             elements.maskRateSlider.addEventListener('input', updateMaskRate);
             elements.playPauseBtn.addEventListener('click', togglePlay);
@@ -1255,24 +1266,29 @@
             return cells.some(cell => cell.classList.contains('hidden'));
         }
 
-        function speakCurrentWord() {
-            if (!('speechSynthesis' in window)) return;
-            
-            const text = elements.textInput.value;
-            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
-            
-            if (state.currentWordIndex < words.length) {
-                const word = words[state.currentWordIndex];
-                const utterance = new SpeechSynthesisUtterance(word);
-                utterance.lang = 'ja-JP';
-                
-                if (state.voices.length > 0) {
-                    utterance.voice = state.voices[0];
-                }
-                
-                speechSynthesis.speak(utterance);
-            }
+// ★★修正後の関数★★
+function speakCurrentWord() {
+    if (!('speechSynthesis' in window)) return;
+    
+    const text = elements.textInput.value;
+    const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+    
+    if (state.currentWordIndex < words.length) {
+        const word = words[state.currentWordIndex];
+        const utterance = new SpeechSynthesisUtterance(word);
+
+        // ★★この一行を追加★★
+        utterance.rate = state.speechRate; // スライダーで設定した速度を適用
+        
+        utterance.lang = 'ja-JP';
+        
+        if (state.voices.length > 0) {
+            utterance.voice = state.voices[0];
         }
+        
+        speechSynthesis.speak(utterance);
+    }
+}
 
         // その他のヘルパー関数
         function updateMaskRate() {
@@ -1313,6 +1329,8 @@
                 maskRate: elements.maskRateSlider.value,
                 speechEnabled: elements.speechToggle.checked,
                 autopauseEnabled: elements.autopauseToggle.checked,
+                soundType: selectedSoundType, // この行を追加
+                speechRate: state.speechRate, // この行を追加
                 pageCount: elements.pageCountSelect.value,
                 soundType: selectedSoundType
             };
@@ -1444,7 +1462,12 @@
             if (savedSettings) {
                 try {
                     const settings = JSON.parse(savedSettings);
-                    
+                        // このifブロックを追加
+    if (settings.speechRate !== undefined) {
+        elements.speechRateSlider.value = settings.speechRate;
+        state.speechRate = settings.speechRate;
+        elements.speechRateValue.textContent = settings.speechRate.toFixed(1);
+    }
                     // 速度設定を復元
                     if (settings.speed) {
                         elements.speedSlider.value = settings.speed;
