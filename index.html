@@ -1,0 +1,1785 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>技術士試験用統合学習ツール</title>
+    <style>
+        :root {
+            --base-color: #4169E1;
+            --highlight-color: #FFF1AB;
+            --danger-color: #DC143C;
+            --editing-color: #d1e7fd;
+            --correct-color: #c8e6c8;
+            --incorrect-color: #ffcccb;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'MS Gothic', 'ＭＳ ゴシック', monospace;
+            background-color: #f0f0f0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: white;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+
+        .controls-container {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            background-color: white;
+            padding: 12px 20px;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 15px;
+        }
+
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 4px;
+            align-items: center;
+        }
+
+        label {
+            font-weight: bold;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        select, button, input[type="range"] {
+            padding: 4px 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
+        #textSelect {
+            width: 120px;
+        }
+
+        button.primary {
+            background-color: var(--base-color);
+            color: white;
+            border-color: var(--base-color);
+            min-width: 60px;
+        }
+
+        button.primary:hover {
+            background-color: #1E90FF;
+        }
+
+        /* エディタコンテナのスタイル */
+        .editor-container {
+            margin: 10px 0;
+        }
+
+        .editor-section {
+            margin-bottom: 5px;
+        }
+
+        .editor-toggle {
+            width: 100%;
+            text-align: left;
+            padding: 8px 15px;
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .editor-toggle:hover {
+            background-color: #e9ecef;
+        }
+
+        .editor-panel {
+            background-color: #f8f9fa;
+            border: 1px solid #ddd;
+            border-top: none;
+            padding: 15px;
+        }
+
+        .editor-panel textarea {
+            width: 100%;
+            height: 120px;
+            font-size: 14px;
+            padding: 8px;
+            border: 2px solid var(--base-color);
+            border-radius: 5px;
+            font-family: inherit;
+            resize: vertical;
+        }
+
+        .editor-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+            align-items: center;
+        }
+
+        .keyword-tabs {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 5px 15px;
+            border: 1px solid #ddd;
+            background: white;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .tab-btn:hover {
+            background-color: #f8f9fa;
+        }
+
+        .tab-btn.active {
+            background-color: var(--base-color);
+            color: white;
+        }
+
+        .keyword-input {
+            min-height: 150px;
+        }
+
+        /* キーワード虫食いコントロール */
+        .keyword-mask-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .keyword-checkbox-group {
+            display: flex;
+            gap: 15px;
+        }
+
+        .keyword-checkbox-group label {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            font-weight: normal;
+        }
+
+        .counter {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .manuscript-paper {
+            position: relative;
+            width: fit-content;
+            margin: 0 auto;
+        }
+
+        .page {
+            margin-bottom: 30px;
+            position: relative;
+        }
+
+        .page-number {
+            position: absolute;
+            bottom: -25px;
+            right: 0;
+            font-size: 14px;
+            color: #666;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(24, 30px);
+            grid-auto-rows: 30px;
+            border: 2px solid var(--base-color);
+        }
+
+        .cell {
+            width: 30px;
+            height: 30px;
+            border: 1px solid var(--base-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            position: relative;
+            background-color: white;
+            transition: all 0.3s ease;
+        }
+
+        .cell.highlight {
+            background-color: var(--highlight-color);
+            animation: pulse 1s ease-in-out;
+        }
+
+        .cell.hidden {
+            background-color: #e0e0e0;
+            cursor: pointer;
+            color: #888;
+        }
+
+        .cell.hidden:hover {
+            background-color: #d0d0d0;
+        }
+
+        .cell.editing {
+            background-color: var(--editing-color);
+            border: 2px solid var(--base-color);
+        }
+
+        .cell.correct {
+            background-color: var(--correct-color);
+            color: #333;
+        }
+
+        .cell.incorrect {
+            background-color: var(--incorrect-color);
+            color: #333;
+        }
+
+        .cell.half-width {
+            font-size: 14px;
+            letter-spacing: -1px;
+        }
+
+        .cell.punctuation {
+            color: #FF1493;
+        }
+
+        .cell .end-punctuation {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            font-size: 12px;
+            color: #FF1493;
+            font-weight: bold;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+
+        /* ポップアップエディター */
+        #popup-editor {
+            display: none;
+            position: absolute;
+            background-color: white;
+            border: 2px solid var(--base-color);
+            border-radius: 8px;
+            padding: 12px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.25);
+            z-index: 1000;
+            min-width: 250px;
+            max-width: 500px;
+        }
+
+        #popup-editor.incorrect-feedback {
+            animation: shake 0.5s;
+            border-color: var(--danger-color);
+        }
+
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-6px); }
+            50% { transform: translateX(6px); }
+            75% { transform: translateX(-6px); }
+        }
+
+        .context-display {
+            font-size: 16px;
+            line-height: 1.4;
+            margin-bottom: 10px;
+            padding: 8px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            text-align: center;
+        }
+
+        .answer-blank {
+            display: inline-block;
+            border-bottom: 2px solid var(--base-color);
+            min-width: 30px;
+            margin: 0 3px;
+            text-align: center;
+            background-color: white;
+            padding: 1px 3px;
+        }
+
+        #popup-input {
+            width: 100%;
+            padding: 8px;
+            font-size: 16px;
+            border: 2px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+            margin-bottom: 10px;
+            font-family: inherit;
+        }
+
+        .popup-buttons {
+            display: flex;
+            gap: 6px;
+            justify-content: center;
+        }
+
+        .popup-buttons button {
+            padding: 6px 12px;
+            font-size: 14px;
+            border-radius: 4px;
+        }
+
+        #feedback-message {
+            margin-top: 8px;
+            padding: 6px;
+            border-radius: 3px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 13px;
+        }
+
+        #feedback-message.error {
+            background-color: var(--incorrect-color);
+            color: var(--danger-color);
+        }
+
+        @media print {
+            body {
+                background-color: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                padding: 0;
+            }
+            .controls-container,
+            .editor-container,
+            #popup-editor {
+                display: none;
+            }
+            .page {
+                page-break-after: always;
+                margin-bottom: 0;
+            }
+            .page:last-child {
+                page-break-after: auto;
+            }
+        }
+
+        @media (max-width: 800px) {
+            .grid {
+                grid-template-columns: repeat(24, 25px);
+            }
+            .cell {
+                width: 25px;
+                height: 25px;
+                font-size: 14px;
+            }
+            .controls {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="controls-container">
+            <!-- 全コントロールを1行に -->
+            <div class="controls">
+                <div class="control-group">
+                    <button id="playPauseBtn" class="primary">再生</button>
+                </div>
+                <div class="control-group">
+                    <label>速度:</label>
+                    <input type="range" id="speedSlider" min="0.1" max="7" step="0.1" value="1.0" style="width: 60px;">
+                    <span id="speedValue">1.0</span>s
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="speechToggle">
+                    <label for="speechToggle">読</label>
+                </div>
+                <div class="control-group">
+                    <label for="speechRateSlider">読速:</label>
+                    <input type="range" id="speechRateSlider" min="0.02" max="3" step="0.02" value="0.8" style="width: 70px;">
+                    <span id="speechRateValue">0.8</span>
+                </div>
+                <div class="control-group">
+                    <input type="checkbox" id="autopauseToggle" checked>
+                    <label for="autopauseToggle">虫停</label>
+                </div>
+                <div class="control-group">
+                    <label>キーワード虫食い:</label>
+                    <div class="keyword-checkbox-group">
+                        <label>
+                            <input type="checkbox" id="keywordNew" checked>
+                            <span style="color: #dc3545;">❌新規</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="keywordLearning" checked>
+                            <span style="color: #ffc107;">❓習得中</span>
+                        </label>
+                        <label>
+                            <input type="checkbox" id="keywordMastered">
+                            <span style="color: #28a745;">⭕完璧</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <select id="pageCount">
+                        <option value="1">1枚</option>
+                        <option value="2">2枚</option>
+                        <option value="3" selected>3枚</option>
+                        <option value="4">4枚</option>
+                        <option value="5">5枚</option>
+                        <option value="6">6枚</option>
+                        <option value="7">7枚</option>
+                        <option value="8">8枚</option>
+                        <option value="9">9枚</option>
+                        <option value="10">10枚</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- エディタコンテナ -->
+        <div class="editor-container">
+            <!-- 本文エディタ -->
+            <div class="editor-section">
+                <button onclick="toggleEditor('main')" class="editor-toggle">
+                    <span>📝 本文</span>
+                    <span id="main-toggle-icon">▶</span>
+                </button>
+                <div id="main-editor" class="editor-panel" style="display: none;">
+                    <textarea id="textInput" placeholder="学習したい文章を入力するか、上のテキスト選択から選んでください..."></textarea>
+                    <div class="editor-controls">
+                        <button onclick="saveMainText()" class="primary">保存</button>
+                        <select id="textSelect">
+                            <option value="">GitHubから選択...</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- キーワードエディタ -->
+            <div class="editor-section">
+                <button onclick="toggleEditor('keywords')" class="editor-toggle">
+                    <span>🔤 キーワード</span>
+                    <span id="keywords-toggle-icon">▶</span>
+                </button>
+                <div id="keywords-editor" class="editor-panel" style="display: none;">
+                    <div class="keyword-tabs">
+                        <button onclick="selectKeywordTab('new')" class="tab-btn active">❌ 新規</button>
+                        <button onclick="selectKeywordTab('learning')" class="tab-btn">❓ 習得中</button>
+                        <button onclick="selectKeywordTab('mastered')" class="tab-btn">⭕ 完璧</button>
+                    </div>
+                    <textarea id="keyword-textarea" class="keyword-input" 
+                        placeholder="キーワードを改行区切りで入力..."></textarea>
+                    <button onclick="saveKeywords()" class="primary">保存</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="counter">
+            文字数: <span id="charCount">0</span> / <span id="maxChars">1800</span>
+            <button onclick="toggleMistakeLog()" style="margin-left: 15px; padding: 4px 8px; font-size: 12px;">間違いログ</button>
+            <button onclick="toggleSoundTest()" style="margin-left: 5px; padding: 4px 8px; font-size: 12px;">音選択</button>
+        </div>
+
+        <!-- 音選択パネル -->
+        <div id="sound-test-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin-bottom: 10px; color: #28a745;">🎵 正解音を選択</h3>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 15px;">
+                <button onclick="testSound(1)" style="padding: 6px 12px; font-size: 12px;">ピンポン</button>
+                <button onclick="testSound(2)" style="padding: 6px 12px; font-size: 12px;">シンプル</button>
+                <button onclick="testSound(3)" style="padding: 6px 12px; font-size: 12px;">ピアノ</button>
+                <button onclick="testSound(4)" style="padding: 6px 12px; font-size: 12px;">木琴</button>
+                <button onclick="testSound(5)" style="padding: 6px 12px; font-size: 12px;">ドレミ</button>
+                <button onclick="testSound(6)" style="padding: 6px 12px; font-size: 12px;">ビープ</button>
+                <button onclick="testSound(0)" style="padding: 6px 12px; font-size: 12px; background-color: #dc3545; color: white;">音なし</button>
+            </div>
+            <p style="margin-bottom: 10px; font-size: 13px;">現在選択: <span id="selected-sound">ピンポン</span></p>
+            <div style="margin-top: 10px;">
+                <button onclick="toggleSoundTest()" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">閉じる</button>
+            </div>
+        </div>
+
+        <!-- 間違いログパネル -->
+        <div id="mistake-log-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin-bottom: 10px; color: #dc3545;">🚨 間違いログ</h3>
+            <div id="mistake-list"></div>
+            <div style="margin-top: 10px;">
+                <button onclick="clearMistakeLog()" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">ログクリア</button>
+                <button onclick="mistakeOnlyMode()" style="background-color: #ffc107; color: black; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px; margin-left: 5px;">苦手問題のみ</button>
+            </div>
+        </div>
+
+        <div class="manuscript-paper" id="manuscriptPaper">
+            <!-- ここにページが動的に生成される -->
+        </div>
+    </div>
+
+    <!-- ポップアップエディター -->
+    <div id="popup-editor">
+        <div class="context-display" id="contextDisplay"></div>
+        <input type="text" id="popup-input" placeholder="ここに答えを入力">
+        <div class="popup-buttons">
+            <button id="submitBtn" class="primary">確定</button>
+            <button id="cancelBtn">キャンセル</button>
+            <button id="showAnswerBtn">答えを見る</button>
+        </div>
+        <div id="feedback-message"></div>
+    </div>
+
+    <script>
+        // DOM要素の取得
+        const elements = {
+            textInput: document.getElementById('textInput'),
+            manuscriptPaper: document.getElementById('manuscriptPaper'),
+            pageCountSelect: document.getElementById('pageCount'),
+            textSelect: document.getElementById('textSelect'),
+            keywordNew: document.getElementById('keywordNew'),
+            keywordLearning: document.getElementById('keywordLearning'),
+            keywordMastered: document.getElementById('keywordMastered'),
+            playPauseBtn: document.getElementById('playPauseBtn'),
+            speedSlider: document.getElementById('speedSlider'),
+            speedValue: document.getElementById('speedValue'),
+            speechToggle: document.getElementById('speechToggle'),
+            autopauseToggle: document.getElementById('autopauseToggle'),
+            charCount: document.getElementById('charCount'),
+            maxChars: document.getElementById('maxChars'),
+            popupEditor: document.getElementById('popup-editor'),
+            contextDisplay: document.getElementById('contextDisplay'),
+            popupInput: document.getElementById('popup-input'),
+            submitBtn: document.getElementById('submitBtn'),
+            cancelBtn: document.getElementById('cancelBtn'),
+            showAnswerBtn: document.getElementById('showAnswerBtn'),
+            speechRateSlider: document.getElementById('speechRateSlider'),
+            speechRateValue: document.getElementById('speechRateValue'),
+            keywordTextarea: document.getElementById('keyword-textarea'),
+            feedbackMessage: document.getElementById('feedback-message')
+        };
+
+        // アプリケーション状態
+        let state = {
+            isPlaying: false,
+            currentWordIndex: -1,
+            timer: null,
+            speed: 1000,
+            voices: [],
+            currentEditingProblem: null,
+            currentEditingProblemIndex: -1,
+            problems: [],
+            characterData: [],
+            speechRate: 0.8,
+            mistakeLog: [],
+            keywords: {
+                new: [],
+                learning: [],
+                mastered: []
+            },
+            currentKeywordTab: 'new'
+        };
+
+        const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
+
+        // 音響効果用
+        let audioContext = null;
+        let selectedSoundType = 1; // デフォルトはピンポン
+
+        // エディタのトグル関数
+        function toggleEditor(type) {
+            const editorId = type === 'main' ? 'main-editor' : 'keywords-editor';
+            const iconId = type === 'main' ? 'main-toggle-icon' : 'keywords-toggle-icon';
+            
+            const editor = document.getElementById(editorId);
+            const icon = document.getElementById(iconId);
+            
+            if (editor.style.display === 'none') {
+                editor.style.display = 'block';
+                icon.textContent = '▼';
+            } else {
+                editor.style.display = 'none';
+                icon.textContent = '▶';
+            }
+        }
+
+        // キーワードタブの選択
+        function selectKeywordTab(tab) {
+            state.currentKeywordTab = tab;
+            
+            // タブのアクティブ状態を更新
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // テキストエリアの内容を更新
+            elements.keywordTextarea.value = state.keywords[tab].join('\n');
+        }
+
+        // 本文の保存
+        function saveMainText() {
+            saveTextToLocal();
+            alert('本文を保存しました');
+        }
+
+        // キーワードの保存
+        function saveKeywords() {
+            const text = elements.keywordTextarea.value.trim();
+            state.keywords[state.currentKeywordTab] = text ? text.split('\n').map(k => k.trim()).filter(k => k) : [];
+            
+            // ローカルストレージに保存
+            localStorage.setItem('gijutsushiKeywords_' + state.currentKeywordTab, JSON.stringify(state.keywords[state.currentKeywordTab]));
+            
+            // 虫食い問題を再生成
+            updateManuscript();
+            
+            alert(`${state.currentKeywordTab === 'new' ? '新規' : state.currentKeywordTab === 'learning' ? '習得中' : '完璧'}キーワードを保存しました`);
+        }
+
+        // キーワードの読み込み
+        async function loadKeywords() {
+            // ローカルストレージから読み込み
+            for (const type of ['new', 'learning', 'mastered']) {
+                const saved = localStorage.getItem('gijutsushiKeywords_' + type);
+                if (saved) {
+                    try {
+                        state.keywords[type] = JSON.parse(saved);
+                    } catch (e) {
+                        state.keywords[type] = [];
+                    }
+                }
+            }
+
+            // GitHubから読み込み（ローカルにない場合）
+            try {
+                for (const type of ['new', 'learning', 'mastered']) {
+                    if (state.keywords[type].length === 0) {
+                        const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/keyword_${type}.txt?t=${new Date().getTime()}`;
+                        const response = await fetch(url, { cache: 'no-store' });
+                        if (response.ok) {
+                            const text = await response.text();
+                            state.keywords[type] = text.split('\n').map(k => k.trim()).filter(k => k);
+                            // ローカルストレージに保存
+                            localStorage.setItem('gijutsushiKeywords_' + type, JSON.stringify(state.keywords[type]));
+                        }
+                    }
+                }
+            } catch (error) {
+                console.log('GitHubからのキーワード読み込みエラー:', error);
+            }
+
+            // 初期表示を更新
+            elements.keywordTextarea.value = state.keywords.new.join('\n');
+        }
+
+        // 音響効果を初期化
+        function initAudio() {
+            try {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            } catch (e) {
+                console.log('音響効果は利用できません');
+            }
+        }
+
+        // 音選択パネルの表示切り替え
+        function toggleSoundTest() {
+            const panel = document.getElementById('sound-test-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // 音のテスト再生
+        function testSound(type) {
+            selectedSoundType = type;
+            const soundNames = ['音なし', 'ピンポン', 'シンプル', 'ピアノ', '木琴', 'ドレミ', 'ビープ'];
+            document.getElementById('selected-sound').textContent = soundNames[type];
+            
+            // 設定を保存
+            saveSettingsToLocal();
+            
+            if (type > 0) {
+                playSuccessSound();
+            }
+        }
+
+        // 正解音を再生（新パターン）
+        function playSuccessSound() {
+            if (!audioContext || selectedSoundType === 0) return;
+            
+            switch (selectedSoundType) {
+                case 1: // ピンポン（既存）
+                    playPingPong();
+                    break;
+                case 2: // シンプル
+                    playSimple();
+                    break;
+                case 3: // ピアノ
+                    playPiano();
+                    break;
+                case 4: // 木琴
+                    playXylophone();
+                    break;
+                case 5: // ドレミ
+                    playDoReMi();
+                    break;
+                case 6: // ビープ
+                    playBeep();
+                    break;
+            }
+        }
+
+        // パターン1: ピンポン（そのまま）
+        function playPingPong() {
+            const osc1 = audioContext.createOscillator();
+            const osc2 = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc1.connect(gain);
+            osc2.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc1.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            osc2.frequency.setValueAtTime(659.25, audioContext.currentTime); // E5
+            
+            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.3);
+            
+            osc1.type = 'sine';
+            osc2.type = 'sine';
+            
+            osc1.start(audioContext.currentTime);
+            osc2.start(audioContext.currentTime);
+            osc1.stop(audioContext.currentTime + 0.3);
+            osc2.stop(audioContext.currentTime + 0.3);
+        }
+
+        // パターン2: シンプル
+        function playSimple() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(600, audioContext.currentTime);
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0.08, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.2);
+        }
+
+        // パターン3: ピアノ風
+        function playPiano() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(523.25, audioContext.currentTime); // C5
+            osc.type = 'triangle';
+            
+            gain.gain.setValueAtTime(0.12, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.4);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.4);
+        }
+
+        // パターン4: 木琴風
+        function playXylophone() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(1046.5, audioContext.currentTime); // C6
+            osc.type = 'square';
+            
+            gain.gain.setValueAtTime(0.06, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.15);
+        }
+
+        // パターン5: ドレミ
+        function playDoReMi() {
+            const frequencies = [523.25, 587.33, 659.25]; // C-D-E
+            frequencies.forEach((freq, i) => {
+                const osc = audioContext.createOscillator();
+                const gain = audioContext.createGain();
+                
+                osc.connect(gain);
+                gain.connect(audioContext.destination);
+                
+                osc.frequency.setValueAtTime(freq, audioContext.currentTime + i * 0.08);
+                osc.type = 'sine';
+                
+                gain.gain.setValueAtTime(0.06, audioContext.currentTime + i * 0.08);
+                gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + i * 0.08 + 0.12);
+                
+                osc.start(audioContext.currentTime + i * 0.08);
+                osc.stop(audioContext.currentTime + i * 0.08 + 0.12);
+            });
+        }
+
+        // パターン6: ビープ
+        function playBeep() {
+            const osc = audioContext.createOscillator();
+            const gain = audioContext.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioContext.destination);
+            
+            osc.frequency.setValueAtTime(800, audioContext.currentTime);
+            osc.type = 'sine';
+            
+            gain.gain.setValueAtTime(0.1, audioContext.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+            
+            osc.start(audioContext.currentTime);
+            osc.stop(audioContext.currentTime + 0.1);
+        }
+
+        // 文字が半角英数字かどうかを判定
+        function isHalfWidth(char) {
+            return /^[a-zA-Z0-9]$/.test(char);
+        }
+
+        // 句読点かどうかを判定
+        function isPunctuation(char) {
+            return /^[、。]$/.test(char);
+        }
+
+        // 初期化
+        function initialize() {
+            bindEvents();
+            initSpeech();
+            initAudio();
+            loadTextList();
+            loadSavedText();
+            loadSavedSettings();
+            loadMistakeLog();
+            loadKeywords(); // キーワードを読み込み
+            initializeGrid();
+        }
+
+        // イベントバインディング
+        function bindEvents() {
+            elements.textInput.addEventListener('input', debounce(handleTextInput, 500));
+            elements.pageCountSelect.addEventListener('change', () => {
+                initializeGrid();
+                saveSettingsToLocal();
+            });
+            
+            elements.speechRateSlider.addEventListener('input', () => {
+                state.speechRate = parseFloat(elements.speechRateSlider.value);
+                elements.speechRateValue.textContent = state.speechRate.toFixed(1);
+                saveSettingsToLocal();
+            });
+            
+            elements.textSelect.addEventListener('change', (e) => loadTextContent(e.target.value));
+            
+            // キーワードチェックボックスのイベント
+            elements.keywordNew.addEventListener('change', () => {
+                updateManuscript();
+                saveSettingsToLocal();
+            });
+            elements.keywordLearning.addEventListener('change', () => {
+                updateManuscript();
+                saveSettingsToLocal();
+            });
+            elements.keywordMastered.addEventListener('change', () => {
+                updateManuscript();
+                saveSettingsToLocal();
+            });
+            
+            elements.playPauseBtn.addEventListener('click', togglePlay);
+            elements.speedSlider.addEventListener('input', updateSpeed);
+            elements.speechToggle.addEventListener('change', saveSettingsToLocal);
+            elements.autopauseToggle.addEventListener('change', saveSettingsToLocal);
+            
+            // ポップアップ関連
+            elements.submitBtn.addEventListener('click', submitAnswer);
+            elements.cancelBtn.addEventListener('click', hidePopup);
+            elements.showAnswerBtn.addEventListener('click', showAnswer);
+            elements.popupInput.addEventListener('keydown', handlePopupKeydown);
+            
+            // 外側クリックでポップアップを閉じる
+            document.addEventListener('click', (e) => {
+                if (!elements.popupEditor.contains(e.target) && !e.target.closest('.cell')) {
+                    hidePopup();
+                }
+            });
+        }
+
+        // グリッド初期化
+        function initializeGrid() {
+            const pageCount = parseInt(elements.pageCountSelect.value);
+            const totalCells = pageCount * 600;
+            elements.maxChars.textContent = totalCells;
+            
+            elements.manuscriptPaper.innerHTML = '';
+            
+            for (let pageNum = 0; pageNum < pageCount; pageNum++) {
+                const pageDiv = document.createElement('div');
+                pageDiv.className = 'page';
+                
+                const gridDiv = document.createElement('div');
+                gridDiv.className = 'grid';
+                
+                for (let i = 0; i < 600; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.addEventListener('click', handleCellClick);
+                    gridDiv.appendChild(cell);
+                }
+                
+                const pageNumber = document.createElement('div');
+                pageNumber.className = 'page-number';
+                pageNumber.textContent = `${pageNum + 1}/${pageCount}`;
+                
+                pageDiv.appendChild(gridDiv);
+                pageDiv.appendChild(pageNumber);
+                elements.manuscriptPaper.appendChild(pageDiv);
+            }
+            
+            updateManuscript();
+        }
+
+        // 文章更新処理
+        function updateManuscript() {
+            pause();
+            hidePopup();
+            state.currentWordIndex = -1;
+            state.problems = [];
+            state.characterData = [];
+            
+            const text = elements.textInput.value;
+            const allCells = Array.from(elements.manuscriptPaper.querySelectorAll('.cell'));
+            
+            // セルをクリア
+            allCells.forEach(cell => {
+                cell.textContent = '';
+                cell.className = 'cell';
+                const endPunc = cell.querySelector('.end-punctuation');
+                if (endPunc) endPunc.remove();
+                delete cell.dataset.charIndex;
+                delete cell.dataset.problemId;
+            });
+
+            if (!text.trim()) {
+                elements.charCount.textContent = '0';
+                return;
+            }
+
+            // 文字配置処理
+            let cellIndex = 0;
+            let textIndex = 0;
+            let charCount = 0;
+
+            while (textIndex < text.length && cellIndex < allCells.length) {
+                const char = text[textIndex];
+                const currentCol = (cellIndex % 600) % 24;
+
+                if (char === '\n') {
+                    // 改行処理
+                    if (cellIndex > 0 && cellIndex % 24 === 0) {
+                        textIndex++;
+                        continue;
+                    }
+                    const currentPageRow = Math.floor((cellIndex % 600) / 24);
+                    cellIndex = Math.floor(cellIndex / 600) * 600 + (currentPageRow + 1) * 24;
+                    textIndex++;
+                    continue;
+                }
+
+                // 句読点処理
+                const nextChar = textIndex + 1 < text.length ? text[textIndex + 1] : null;
+                
+                if (currentCol === 23 && nextChar && isPunctuation(nextChar)) {
+                    allCells[cellIndex].textContent = char;
+                    allCells[cellIndex].dataset.charIndex = textIndex;
+                    state.characterData[textIndex] = {
+                        char: char,
+                        cell: allCells[cellIndex],
+                        cellIndex: cellIndex
+                    };
+                    
+                    const punctuationSpan = document.createElement('span');
+                    punctuationSpan.className = 'end-punctuation';
+                    punctuationSpan.textContent = nextChar;
+                    allCells[cellIndex].appendChild(punctuationSpan);
+                    allCells[cellIndex].classList.add('punctuation');
+                    
+                    textIndex += 2;
+                    charCount += 2;
+                    cellIndex = Math.floor(cellIndex / 24) * 24 + 24;
+                    continue;
+                }
+
+                // 半角英数字の連続処理
+                if (isHalfWidth(char) && nextChar && isHalfWidth(nextChar)) {
+                    allCells[cellIndex].textContent = char + nextChar;
+                    allCells[cellIndex].classList.add('half-width');
+                    allCells[cellIndex].dataset.charIndex = textIndex;
+                    
+                    // 両方の文字のデータを保存
+                    state.characterData[textIndex] = {
+                        char: char,
+                        cell: allCells[cellIndex],
+                        cellIndex: cellIndex,
+                        isFirstHalf: true
+                    };
+                    state.characterData[textIndex + 1] = {
+                        char: nextChar,
+                        cell: allCells[cellIndex],
+                        cellIndex: cellIndex,
+                        isSecondHalf: true
+                    };
+                    
+                    textIndex += 2;
+                    charCount += 2;
+                    cellIndex++;
+                    continue;
+                }
+
+                // 通常文字配置
+                allCells[cellIndex].textContent = char;
+                allCells[cellIndex].dataset.charIndex = textIndex;
+                state.characterData[textIndex] = {
+                    char: char,
+                    cell: allCells[cellIndex],
+                    cellIndex: cellIndex
+                };
+                
+                if (isPunctuation(char)) {
+                    allCells[cellIndex].classList.add('punctuation');
+                }
+                
+                textIndex++;
+                charCount++;
+                cellIndex++;
+            }
+
+            elements.charCount.textContent = charCount;
+            
+            // キーワード虫食い問題生成
+            generateKeywordProblems(text);
+        }
+
+        // キーワード虫食い問題生成
+        function generateKeywordProblems(text) {
+            const activeKeywords = [];
+            
+            // チェックされているキーワードタイプを収集
+            if (elements.keywordNew.checked) {
+                activeKeywords.push(...state.keywords.new);
+            }
+            if (elements.keywordLearning.checked) {
+                activeKeywords.push(...state.keywords.learning);
+            }
+            if (elements.keywordMastered.checked) {
+                activeKeywords.push(...state.keywords.mastered);
+            }
+            
+            if (activeKeywords.length === 0) return;
+            
+            // 重複を削除してソート（長い順）
+            const uniqueKeywords = [...new Set(activeKeywords)].sort((a, b) => b.length - a.length);
+            
+            // キーワードを検索して問題を作成
+            const foundProblems = [];
+            
+            uniqueKeywords.forEach(keyword => {
+                let searchStart = 0;
+                while (true) {
+                    const index = text.indexOf(keyword, searchStart);
+                    if (index === -1) break;
+                    
+                    // 重複チェック
+                    let overlaps = false;
+                    for (const existing of foundProblems) {
+                        if ((index >= existing.start && index < existing.end) ||
+                            (index + keyword.length > existing.start && index + keyword.length <= existing.end)) {
+                            overlaps = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!overlaps) {
+                        foundProblems.push({
+                            keyword: keyword,
+                            start: index,
+                            end: index + keyword.length
+                        });
+                    }
+                    
+                    searchStart = index + 1;
+                }
+            });
+            
+            // 開始位置でソート
+            foundProblems.sort((a, b) => a.start - b.start);
+            
+            // 問題を作成
+            foundProblems.forEach((found, index) => {
+                const cells = [];
+                
+                // 該当する文字のセルを取得
+                for (let i = found.start; i < found.end; i++) {
+                    const charData = state.characterData[i];
+                    if (charData && charData.cell) {
+                        cells.push(charData.cell);
+                    }
+                }
+                
+                if (cells.length > 0) {
+                    const problem = {
+                        id: index,
+                        startIndex: found.start,
+                        endIndex: found.end - 1,
+                        answer: found.keyword,
+                        cells: cells
+                    };
+                    
+                    state.problems.push(problem);
+                    console.log('キーワード虫食い問題作成:', problem.answer);
+                    
+                    // セルを隠す
+                    cells.forEach(cell => {
+                        cell.classList.add('hidden');
+                        cell.textContent = '○';
+                        cell.dataset.problemId = problem.id;
+                        
+                        // 間違えた単語かチェックして赤色表示
+                        if (isMistakenWord(problem.answer)) {
+                            cell.classList.add('mistake');
+                        }
+                    });
+                }
+            });
+        }
+
+        // セルクリック処理
+        function handleCellClick(event) {
+            const cell = event.target;
+            if (!cell.classList.contains('hidden') || !cell.dataset.problemId) return;
+
+            const problemId = parseInt(cell.dataset.problemId);
+            const problem = state.problems[problemId];
+            if (!problem) return;
+
+            state.currentEditingProblem = problem;
+            state.currentEditingProblemIndex = problemId; // インデックスを記録
+            showPopup(problem);
+        }
+
+        // ポップアップ表示
+        function showPopup(problem) {
+            const startIndex = problem.startIndex;
+            const endIndex = problem.endIndex;
+            const text = elements.textInput.value;
+            
+            // 前後の文脈を取得（15文字ずつ）
+            const contextBefore = text.substring(Math.max(0, startIndex - 15), startIndex);
+            const contextAfter = text.substring(endIndex + 1, Math.min(text.length, endIndex + 16));
+            
+            // コンテキスト表示（パターンA: 空白入力方式）
+            const blankSpace = '　'.repeat(problem.answer.length);
+            elements.contextDisplay.innerHTML = `
+                <span style="color: #666;">${escapeHtml(contextBefore)}</span><span class="answer-blank">${blankSpace}</span><span style="color: #666;">${escapeHtml(contextAfter)}</span>
+            `;
+            
+            elements.popupInput.value = '';
+            elements.popupInput.style.width = `${Math.max(problem.answer.length + 5, 6)}em`;
+            elements.feedbackMessage.textContent = '';
+            elements.feedbackMessage.className = '';
+
+            // 問題のセルを編集状態に
+            problem.cells.forEach(cell => cell.classList.add('editing'));
+
+            // ポップアップ位置調整
+            const firstCell = problem.cells[0];
+            const rect = firstCell.getBoundingClientRect();
+            elements.popupEditor.style.display = 'block';
+            elements.popupEditor.style.top = `${window.scrollY + rect.top - elements.popupEditor.offsetHeight - 10}px`;
+            elements.popupEditor.style.left = `${window.scrollX + rect.left + (rect.width / 2) - (elements.popupEditor.offsetWidth / 2)}px`;
+            
+            elements.popupInput.focus();
+        }
+
+        // ポップアップ非表示
+        function hidePopup() {
+            document.querySelectorAll('.cell.editing').forEach(cell => {
+                cell.classList.remove('editing');
+            });
+            elements.popupEditor.style.display = 'none';
+            elements.popupEditor.classList.remove('incorrect-feedback');
+            state.currentEditingProblem = null;
+            state.currentEditingProblemIndex = -1;
+        }
+
+        // 次の虫食い問題を見つける（シンプル版）
+        function findNextHiddenProblem() {
+            // 現在編集中の問題より後にある、まだ隠されている問題を探す
+            let foundCurrent = false;
+            
+            for (let i = 0; i < state.problems.length; i++) {
+                const problem = state.problems[i];
+                
+                // 現在の問題を見つけた後の問題を探す
+                if (foundCurrent) {
+                    const hasHiddenCells = problem.cells.some(cell => cell.classList.contains('hidden'));
+                    if (hasHiddenCells) {
+                        console.log('次の問題を発見:', problem.answer);
+                        return problem;
+                    }
+                }
+                
+                // 現在編集中の問題かチェック
+                if (state.currentEditingProblem && problem.id === state.currentEditingProblem.id) {
+                    foundCurrent = true;
+                }
+            }
+            
+            console.log('次の問題なし');
+            return null;
+        }
+
+        // 答え確認
+        function submitAnswer() {
+            if (!state.currentEditingProblem) return;
+
+            const userAnswer = elements.popupInput.value.trim();
+            const correctAnswer = state.currentEditingProblem.answer;
+
+            if (userAnswer === correctAnswer) {
+                console.log('正解！次の問題を探します...');
+                
+                // 正解音を再生
+                playSuccessSound();
+                
+                // 次の問題を先に探す（hidePopup前に）
+                const nextProblem = findNextHiddenProblem();
+                
+                // 正解処理
+                state.currentEditingProblem.cells.forEach(cell => {
+                    cell.classList.remove('hidden', 'editing');
+                    cell.classList.add('correct');
+                    const charIndex = parseInt(cell.dataset.charIndex);
+                    const charData = state.characterData[charIndex];
+                    if (charData) {
+                        cell.textContent = charData.char;
+                    }
+                });
+                hidePopup();
+                
+                // 次の虫食い問題を自動で表示
+                setTimeout(() => {
+                    if (nextProblem) {
+                        console.log('次の問題が見つかりました:', nextProblem.answer);
+                        // 次の問題があれば自動でポップアップ
+                        state.currentEditingProblem = nextProblem;
+                        state.currentEditingProblemIndex = nextProblem.id;
+                        showPopup(nextProblem);
+                    } else {
+                        console.log('次の問題が見つかりません');
+                        if (elements.autopauseToggle.checked && !state.isPlaying) {
+                            // 全ての問題が解決されて、かつ再生停止中なら再生を継続
+                            setTimeout(() => {
+                                play();
+                            }, 500);
+                        }
+                    }
+                }, 300);
+                
+            } else {
+                // 不正解 - 間違いを記録
+                const wrongWord = state.currentEditingProblem.answer;
+                recordMistake(wrongWord, userAnswer, correctAnswer);
+                
+                elements.feedbackMessage.textContent = `不正解です。正解は「${correctAnswer}」`;
+                elements.feedbackMessage.className = 'error';
+                elements.popupEditor.classList.add('incorrect-feedback');
+                elements.popupInput.select();
+                
+                setTimeout(() => {
+                    elements.popupEditor.classList.remove('incorrect-feedback');
+                }, 500);
+            }
+        }
+
+        // 答えを見る
+        function showAnswer() {
+            if (!state.currentEditingProblem) return;
+            
+            const correctAnswer = state.currentEditingProblem.answer;
+            elements.popupInput.value = correctAnswer;
+            submitAnswer();
+        }
+
+        // ポップアップキーボード処理
+        function handlePopupKeydown(event) {
+            if (event.key === 'Enter') {
+                submitAnswer();
+            } else if (event.key === 'Escape') {
+                hidePopup();
+            }
+        }
+
+        // 再生関連
+        function togglePlay() {
+            state.isPlaying ? pause() : play();
+        }
+
+        function play() {
+            if (!elements.textInput.value.trim()) return;
+            
+            state.isPlaying = true;
+            elements.playPauseBtn.textContent = '一時停止';
+            
+            if (state.currentWordIndex >= getWordCount() - 1) {
+                state.currentWordIndex = -1;
+            }
+            
+            tick();
+        }
+
+        function pause() {
+            state.isPlaying = false;
+            elements.playPauseBtn.textContent = '再生';
+            clearTimeout(state.timer);
+        }
+
+        function tick() {
+            if (!state.isPlaying) return;
+
+            // 前の単語のハイライトを削除
+            if (state.currentWordIndex >= 0) {
+                removeWordHighlight(state.currentWordIndex);
+            }
+
+            state.currentWordIndex++;
+            const wordCount = getWordCount();
+            
+            if (state.currentWordIndex >= wordCount) {
+                pause();
+                return;
+            }
+
+            // 現在の単語をハイライト
+            highlightWord(state.currentWordIndex);
+
+            // 音声読み上げ
+            if (elements.speechToggle.checked) {
+                speakCurrentWord();
+            }
+
+            // 虫食い部分で一時停止するかチェック
+            if (elements.autopauseToggle.checked && isWordHidden(state.currentWordIndex)) {
+                pause();
+                
+                // 読み上げONの場合は自動でポップアップ表示
+                if (elements.speechToggle.checked) {
+                    setTimeout(() => {
+                        const wordCells = getWordCells(state.currentWordIndex);
+                        if (wordCells.length > 0) {
+                            handleCellClick({ target: wordCells[0] });
+                        }
+                    }, 1000); // 読み上げ完了を待つ
+                } else {
+                    // 読み上げOFFの場合は従来通り
+                    const wordCells = getWordCells(state.currentWordIndex);
+                    if (wordCells.length > 0) {
+                        handleCellClick({ target: wordCells[0] });
+                    }
+                }
+            } else {
+                state.timer = setTimeout(tick, state.speed);
+            }
+        }
+
+        function getWordCount() {
+            const text = elements.textInput.value;
+            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+            return words.length;
+        }
+
+        function highlightWord(wordIndex) {
+            const cells = getWordCells(wordIndex);
+            cells.forEach(cell => cell.classList.add('highlight'));
+        }
+
+        function removeWordHighlight(wordIndex) {
+            const cells = getWordCells(wordIndex);
+            cells.forEach(cell => cell.classList.remove('highlight'));
+        }
+
+        function getWordCells(wordIndex) {
+            const text = elements.textInput.value;
+            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+            
+            if (wordIndex >= words.length) return [];
+            
+            // 単語の位置を計算
+            let charPosition = 0;
+            for (let i = 0; i < wordIndex; i++) {
+                const wordStart = text.indexOf(words[i], charPosition);
+                charPosition = wordStart + words[i].length;
+            }
+            
+            const targetWord = words[wordIndex];
+            const wordStart = text.indexOf(targetWord, charPosition);
+            const wordEnd = wordStart + targetWord.length;
+            
+            const cells = [];
+            for (let i = wordStart; i < wordEnd; i++) {
+                const charData = state.characterData[i];
+                if (charData && charData.cell) {
+                    cells.push(charData.cell);
+                }
+            }
+            
+            return cells;
+        }
+
+        function isWordHidden(wordIndex) {
+            const cells = getWordCells(wordIndex);
+            return cells.some(cell => cell.classList.contains('hidden'));
+        }
+
+        function speakCurrentWord() {
+            if (!('speechSynthesis' in window)) return;
+            
+            const text = elements.textInput.value;
+            const words = text.match(/[\p{L}\p{N}]+|[、。]/gu) || [];
+            
+            if (state.currentWordIndex < words.length) {
+                const word = words[state.currentWordIndex];
+                const utterance = new SpeechSynthesisUtterance(word);
+
+                utterance.rate = state.speechRate; // スライダーで設定した速度を適用
+                
+                utterance.lang = 'ja-JP';
+                
+                if (state.voices.length > 0) {
+                    utterance.voice = state.voices[0];
+                }
+                
+                speechSynthesis.speak(utterance);
+            }
+        }
+
+        // その他のヘルパー関数
+        function updateSpeed() {
+            state.speed = parseFloat(elements.speedSlider.value) * 1000;
+            elements.speedValue.textContent = elements.speedSlider.value;
+            saveSettingsToLocal();
+        }
+
+        function initSpeech() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.onvoiceschanged = () => {
+                    state.voices = speechSynthesis.getVoices().filter(voice => voice.lang === 'ja-JP');
+                };
+            } else {
+                elements.speechToggle.parentElement.style.display = 'none';
+            }
+        }
+
+        function handleTextInput() {
+            updateManuscript();
+            saveTextToLocal();
+        }
+
+        function saveTextToLocal() {
+            localStorage.setItem('gijutsushiText_integrated', elements.textInput.value);
+        }
+
+        function saveSettingsToLocal() {
+            const settings = {
+                speed: elements.speedSlider.value,
+                speechEnabled: elements.speechToggle.checked,
+                autopauseEnabled: elements.autopauseToggle.checked,
+                soundType: selectedSoundType,
+                speechRate: state.speechRate,
+                pageCount: elements.pageCountSelect.value,
+                keywordNew: elements.keywordNew.checked,
+                keywordLearning: elements.keywordLearning.checked,
+                keywordMastered: elements.keywordMastered.checked
+            };
+            localStorage.setItem('gijutsushiSettings_integrated', JSON.stringify(settings));
+        }
+
+        // 間違いログの保存・読み込み
+        function saveMistakeLog() {
+            localStorage.setItem('gijutsushiMistakes_integrated', JSON.stringify(state.mistakeLog));
+        }
+
+        function loadMistakeLog() {
+            const savedMistakes = localStorage.getItem('gijutsushiMistakes_integrated');
+            if (savedMistakes) {
+                try {
+                    state.mistakeLog = JSON.parse(savedMistakes);
+                } catch (error) {
+                    console.error('間違いログ読み込みエラー:', error);
+                    state.mistakeLog = [];
+                }
+            }
+        }
+
+        // 間違いを記録する
+        function recordMistake(word, userAnswer, correctAnswer) {
+            const now = new Date();
+            const mistake = {
+                word: word,
+                userAnswer: userAnswer,
+                correctAnswer: correctAnswer,
+                timestamp: now.toISOString(),
+                date: now.toLocaleDateString('ja-JP')
+            };
+
+            // 既存の間違いがあるかチェック
+            const existingIndex = state.mistakeLog.findIndex(m => m.word === word);
+            if (existingIndex !== -1) {
+                // 既存の間違いに追加
+                if (!state.mistakeLog[existingIndex].attempts) {
+                    state.mistakeLog[existingIndex].attempts = [];
+                }
+                state.mistakeLog[existingIndex].attempts.push(mistake);
+                state.mistakeLog[existingIndex].count = (state.mistakeLog[existingIndex].count || 1) + 1;
+                state.mistakeLog[existingIndex].lastMistake = now.toISOString();
+            } else {
+                // 新しい間違いとして追加
+                state.mistakeLog.push({
+                    word: word,
+                    userAnswer: userAnswer,
+                    correctAnswer: correctAnswer,
+                    count: 1,
+                    firstMistake: now.toISOString(),
+                    lastMistake: now.toISOString(),
+                    attempts: [mistake]
+                });
+            }
+
+            saveMistakeLog();
+            console.log('間違いを記録しました:', word);
+        }
+
+        // 単語が過去に間違えられたかチェック
+        function isMistakenWord(word) {
+            return state.mistakeLog.some(m => m.word === word);
+        }
+
+        // 間違いログパネルの表示切り替え
+        function toggleMistakeLog() {
+            const panel = document.getElementById('mistake-log-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+                updateMistakeLogDisplay();
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // 間違いログの表示更新
+        function updateMistakeLogDisplay() {
+            const listElement = document.getElementById('mistake-list');
+            if (state.mistakeLog.length === 0) {
+                listElement.innerHTML = '<p style="color: #28a745;">まだ間違いはありません！</p>';
+                return;
+            }
+
+            // 間違い回数の多い順にソート
+            const sortedMistakes = [...state.mistakeLog].sort((a, b) => b.count - a.count);
+            
+            listElement.innerHTML = sortedMistakes.map(mistake => `
+                <div style="background-color: white; padding: 8px; margin: 5px 0; border-radius: 4px; border-left: 4px solid #dc3545;">
+                    <strong>${mistake.word}</strong> 
+                    <span style="color: #dc3545;">(${mistake.count}回間違い)</span>
+                    <br>
+                    <small style="color: #666;">最後の間違い: ${new Date(mistake.lastMistake).toLocaleString('ja-JP')}</small>
+                </div>
+            `).join('');
+        }
+
+        // 間違いログをクリア
+        function clearMistakeLog() {
+            if (confirm('間違いログをすべて削除しますか？')) {
+                state.mistakeLog = [];
+                saveMistakeLog();
+                updateMistakeLogDisplay();
+                updateManuscript(); // 赤色表示をリセット
+                console.log('間違いログをクリアしました');
+            }
+        }
+
+        // 苦手問題のみモード
+        function mistakeOnlyMode() {
+            if (state.mistakeLog.length === 0) {
+                alert('間違いログがありません');
+                return;
+            }
+            alert('苦手問題のみモード（未実装）\n間違えた単語のみを虫食い表示する機能です');
+            // TODO: 実装予定
+        }
+
+        function loadSavedText() {
+            const saved = localStorage.getItem('gijutsushiText_integrated');
+            if (saved) {
+                elements.textInput.value = saved;
+            }
+        }
+
+        function loadSavedSettings() {
+            const savedSettings = localStorage.getItem('gijutsushiSettings_integrated');
+            if (savedSettings) {
+                try {
+                    const settings = JSON.parse(savedSettings);
+                    
+                    if (settings.speechRate !== undefined) {
+                        elements.speechRateSlider.value = settings.speechRate;
+                        state.speechRate = settings.speechRate;
+                        elements.speechRateValue.textContent = settings.speechRate.toFixed(1);
+                    }
+                    
+                    // 速度設定を復元
+                    if (settings.speed) {
+                        elements.speedSlider.value = settings.speed;
+                        state.speed = parseFloat(settings.speed) * 1000;
+                        elements.speedValue.textContent = settings.speed;
+                    }
+                    
+                    // チェックボックスを復元
+                    if (settings.speechEnabled !== undefined) {
+                        elements.speechToggle.checked = settings.speechEnabled;
+                    }
+                    
+                    if (settings.autopauseEnabled !== undefined) {
+                        elements.autopauseToggle.checked = settings.autopauseEnabled;
+                    }
+                    
+                    // キーワードチェックボックスを復元
+                    if (settings.keywordNew !== undefined) {
+                        elements.keywordNew.checked = settings.keywordNew;
+                    }
+                    if (settings.keywordLearning !== undefined) {
+                        elements.keywordLearning.checked = settings.keywordLearning;
+                    }
+                    if (settings.keywordMastered !== undefined) {
+                        elements.keywordMastered.checked = settings.keywordMastered;
+                    }
+                    
+                    // ページ数を復元
+                    if (settings.pageCount) {
+                        elements.pageCountSelect.value = settings.pageCount;
+                    }
+                    
+                    // 音設定を復元
+                    if (settings.soundType !== undefined) {
+                        selectedSoundType = settings.soundType;
+                        const soundNames = ['音なし', 'ピンポン', 'シンプル', 'ピアノ', '木琴', 'ドレミ', 'ビープ'];
+                        const soundElement = document.getElementById('selected-sound');
+                        if (soundElement) {
+                            soundElement.textContent = soundNames[selectedSoundType];
+                        }
+                    }
+                } catch (error) {
+                    console.error('設定読み込みエラー:', error);
+                }
+            }
+        }
+
+        async function loadTextList() {
+            const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/index.json?t=${new Date().getTime()}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) return;
+                
+                const fileList = await response.json();
+                elements.textSelect.innerHTML = '<option value="">GitHubから選択...</option>';
+                
+                fileList.forEach(fileName => {
+                    const option = document.createElement('option');
+                    option.value = fileName;
+                    option.textContent = fileName.replace('.txt', '');
+                    elements.textSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('テキストリスト読み込みエラー:', error);
+            }
+        }
+
+        async function loadTextContent(fileName) {
+            if (!fileName) return;
+            
+            const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/${fileName}?t=${new Date().getTime()}`;
+            try {
+                const response = await fetch(url, { cache: 'no-store' });
+                if (!response.ok) throw new Error(`ファイル読み込み失敗: ${fileName}`);
+                
+                const text = await response.text();
+                elements.textInput.value = text;
+                handleTextInput();
+            } catch (error) {
+                console.error('テキスト読み込みエラー:', error);
+                elements.textInput.value = `エラー: ${error.message}`;
+            }
+        }
+
+        function debounce(func, delay) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), delay);
+            };
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // 初期化実行
+        initialize();
+    </script>
+</body>
+</html>
