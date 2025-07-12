@@ -312,26 +312,6 @@
             75% { transform: translateX(-6px); }
         }
 
-        .context-display {
-            font-size: 16px;
-            line-height: 1.4;
-            margin-bottom: 10px;
-            padding: 8px;
-            background-color: #f8f9fa;
-            border-radius: 4px;
-            text-align: center;
-        }
-
-        .answer-blank {
-            display: inline-block;
-            border-bottom: 2px solid var(--base-color);
-            min-width: 30px;
-            margin: 0 3px;
-            text-align: center;
-            background-color: white;
-            padding: 1px 3px;
-        }
-
         #popup-input {
             width: 100%;
             padding: 8px;
@@ -427,8 +407,9 @@
                 </div>
                 <div class="control-group">
                     <label for="speechRateSlider">読速:</label>
-                    <input type="range" id="speechRateSlider" min="0.02" max="3" step="0.02" value="0.8" style="width: 70px;">
+                    <input type="range" id="speechRateSlider" min="0.05" max="3" step="0.05" value="0.8" style="width: 70px;">
                     <span id="speechRateValue">0.8</span>
+                    <button onclick="toggleSlowMode()" style="padding: 2px 6px; font-size: 11px; margin-left: 5px;">超低速</button>
                 </div>
                 <div class="control-group">
                     <input type="checkbox" id="autopauseToggle" checked>
@@ -502,8 +483,8 @@
                         placeholder="キーワードを改行区切りで入力..."></textarea>
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
                         <button onclick="saveKeywords()" class="primary">保存</button>
-                        <button id="moveLeftBtn" onclick="moveSelectedKeyword('left')" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; display: none;">← 苦手移動</button>
-                        <button id="moveRightBtn" onclick="moveSelectedKeyword('right')" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">完璧移動 →</button>
+                        <button id="moveLeftBtn" onclick="moveSelectedKeyword('left')" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; display: none;">←</button>
+                        <button id="moveRightBtn" onclick="moveSelectedKeyword('right')" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">→</button>
                     </div>
                     <div id="keyword-move-info" style="margin-top: 10px; font-size: 12px; color: #666;">
                         ※キーワードを選択して移動ボタンを押すか、3回正解で自動移動
@@ -516,6 +497,7 @@
             文字数: <span id="charCount">0</span> / <span id="maxChars">1800</span>
             <button onclick="toggleMistakeLog()" style="margin-left: 15px; padding: 4px 8px; font-size: 12px;">間違いログ</button>
             <button onclick="toggleSoundTest()" style="margin-left: 5px; padding: 4px 8px; font-size: 12px;">音選択</button>
+            <button onclick="toggleSyncPanel()" style="margin-left: 5px; padding: 4px 8px; font-size: 12px;">📱 同期</button>
         </div>
 
         <!-- 音選択パネル -->
@@ -546,6 +528,23 @@
             </div>
         </div>
 
+        <!-- データ同期パネル -->
+        <div id="sync-panel" style="display: none; background-color: #f8f9fa; border: 1px solid #ddd; border-radius: 5px; padding: 15px; margin-bottom: 15px;">
+            <h3 style="margin-bottom: 10px; color: #4169E1;">📱 デバイス間データ同期</h3>
+            <div style="margin-bottom: 15px;">
+                <p style="font-size: 13px; margin-bottom: 10px;">現在のデバイスのデータを他のデバイスにコピー：</p>
+                <button onclick="copyDataToClipboard()" style="background-color: #4169E1; color: white; border: none; padding: 8px 16px; border-radius: 4px;">データをコピー</button>
+            </div>
+            <div>
+                <p style="font-size: 13px; margin-bottom: 10px;">他のデバイスからデータを読み込み：</p>
+                <textarea id="sync-data-input" placeholder="ここにコピーしたデータを貼り付け..." style="width: 100%; height: 100px; font-size: 12px; margin-bottom: 10px;"></textarea>
+                <button onclick="loadDataFromClipboard()" style="background-color: #28a745; color: white; border: none; padding: 8px 16px; border-radius: 4px;">データを読み込み</button>
+            </div>
+            <div style="margin-top: 10px;">
+                <button onclick="toggleSyncPanel()" style="background-color: #6c757d; color: white; border: none; padding: 6px 12px; border-radius: 4px; font-size: 12px;">閉じる</button>
+            </div>
+        </div>
+
         <div class="manuscript-paper" id="manuscriptPaper">
             <!-- ここにページが動的に生成される -->
         </div>
@@ -553,12 +552,21 @@
 
     <!-- ポップアップエディター -->
     <div id="popup-editor">
-        <div class="context-display" id="contextDisplay"></div>
+        <div id="keyword-level-display" style="text-align: center; margin-bottom: 10px;">
+            <span style="font-weight: bold; font-size: 16px;">現在のレベル: </span>
+            <span id="current-level" style="font-size: 16px;"></span>
+        </div>
         <input type="text" id="popup-input" placeholder="ここに答えを入力">
         <div class="popup-buttons">
             <button id="submitBtn" class="primary">確定</button>
             <button id="cancelBtn">キャンセル</button>
             <button id="showAnswerBtn">答えを見る</button>
+        </div>
+        <div style="margin-top: 10px; text-align: center;">
+            <span style="font-size: 12px; color: #666;">レベル変更：</span>
+            <button onclick="moveKeywordToLevel('new')" style="background-color: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 0 2px;">苦手</button>
+            <button onclick="moveKeywordToLevel('learning')" style="background-color: #ffc107; color: black; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 0 2px;">習得中</button>
+            <button onclick="moveKeywordToLevel('mastered')" style="background-color: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 0 2px;">完璧</button>
         </div>
         <div id="feedback-message"></div>
     </div>
@@ -581,7 +589,6 @@
             charCount: document.getElementById('charCount'),
             maxChars: document.getElementById('maxChars'),
             popupEditor: document.getElementById('popup-editor'),
-            contextDisplay: document.getElementById('contextDisplay'),
             popupInput: document.getElementById('popup-input'),
             submitBtn: document.getElementById('submitBtn'),
             cancelBtn: document.getElementById('cancelBtn'),
@@ -611,7 +618,8 @@
                 mastered: []
             },
             currentKeywordTab: 'new',
-            keywordStats: {} // キーワードごとの正解回数を記録
+            keywordStats: {}, // キーワードごとの正解回数を記録
+            slowMode: false // 超低速モード
         };
 
         const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
@@ -658,16 +666,13 @@
             if (tab === 'new') {
                 moveLeftBtn.style.display = 'none';
                 moveRightBtn.style.display = 'block';
-                moveRightBtn.textContent = '習得中移動 →';
                 moveInfo.innerHTML = '※キーワードを選択して移動ボタンを押すか、<strong>3回正解</strong>で習得中へ自動移動';
             } else if (tab === 'learning') {
                 moveLeftBtn.style.display = 'block';
                 moveRightBtn.style.display = 'block';
-                moveRightBtn.textContent = '完璧移動 →';
                 moveInfo.innerHTML = '※キーワードを選択して移動ボタンを押すか、<strong>3回正解</strong>で完璧へ自動移動';
             } else {
                 moveLeftBtn.style.display = 'block';
-                moveLeftBtn.textContent = '← 習得中移動';
                 moveRightBtn.style.display = 'none';
                 moveInfo.innerHTML = '※完璧レベルのキーワードは習得中に戻すことができます';
             }
@@ -883,7 +888,6 @@
             if (moveLeftBtn && moveRightBtn) {
                 moveLeftBtn.style.display = 'none';
                 moveRightBtn.style.display = 'block';
-                moveRightBtn.textContent = '習得中移動 →';
             }
         }
 
@@ -1401,19 +1405,48 @@
 
         // ポップアップ表示
         function showPopup(problem) {
-            const startIndex = problem.startIndex;
-            const endIndex = problem.endIndex;
-            const text = elements.textInput.value;
+            const answer = problem.answer;
             
-            // 前後の文脈を取得（15文字ずつ）
-            const contextBefore = text.substring(Math.max(0, startIndex - 15), startIndex);
-            const contextAfter = text.substring(endIndex + 1, Math.min(text.length, endIndex + 16));
+            // 現在のキーワードレベルを判定
+            let currentLevel = null;
+            let levelName = '';
+            let levelColor = '';
             
-            // コンテキスト表示（パターンA: 空白入力方式）
-            const blankSpace = '　'.repeat(problem.answer.length);
-            elements.contextDisplay.innerHTML = `
-                <span style="color: #666;">${escapeHtml(contextBefore)}</span><span class="answer-blank">${blankSpace}</span><span style="color: #666;">${escapeHtml(contextAfter)}</span>
-            `;
+            if (state.keywords.new.includes(answer)) {
+                currentLevel = 'new';
+                levelName = '❌ 苦手';
+                levelColor = '#dc3545';
+            } else if (state.keywords.learning.includes(answer)) {
+                currentLevel = 'learning';
+                levelName = '❓ 習得中';
+                levelColor = '#ffc107';
+            } else if (state.keywords.mastered.includes(answer)) {
+                currentLevel = 'mastered';
+                levelName = '⭕ 完璧';
+                levelColor = '#28a745';
+            }
+            
+            // レベル表示を更新
+            const levelDisplay = document.getElementById('current-level');
+            if (levelDisplay) {
+                levelDisplay.textContent = levelName;
+                levelDisplay.style.color = levelColor;
+            }
+            
+            // 読み上げ機能
+            if (elements.speechToggle.checked) {
+                if (state.slowMode) {
+                    speakSlowly(answer);
+                } else {
+                    const utterance = new SpeechSynthesisUtterance(answer);
+                    utterance.rate = state.speechRate;
+                    utterance.lang = 'ja-JP';
+                    if (state.voices.length > 0) {
+                        utterance.voice = state.voices[0];
+                    }
+                    speechSynthesis.speak(utterance);
+                }
+            }
             
             elements.popupInput.value = '';
             elements.popupInput.style.width = `${Math.max(problem.answer.length + 5, 6)}em`;
@@ -1469,6 +1502,106 @@
             
             console.log('次の問題なし');
             return null;
+        }
+
+        // ポップアップからキーワードレベルを変更
+        function moveKeywordToLevel(targetLevel) {
+            if (!state.currentEditingProblem) return;
+            
+            const keyword = state.currentEditingProblem.answer;
+            
+            // 現在のレベルを特定
+            let currentLevel = null;
+            if (state.keywords.new.includes(keyword)) {
+                currentLevel = 'new';
+            } else if (state.keywords.learning.includes(keyword)) {
+                currentLevel = 'learning';
+            } else if (state.keywords.mastered.includes(keyword)) {
+                currentLevel = 'mastered';
+            }
+            
+            if (!currentLevel || currentLevel === targetLevel) {
+                if (currentLevel === targetLevel) {
+                    alert('既に同じレベルです');
+                }
+                return;
+            }
+            
+            // 移動処理
+            const fromList = state.keywords[currentLevel];
+            const toList = state.keywords[targetLevel];
+            
+            // リストから削除
+            const index = fromList.indexOf(keyword);
+            if (index > -1) {
+                fromList.splice(index, 1);
+            }
+            
+            // リストに追加
+            if (!toList.includes(keyword)) {
+                toList.push(keyword);
+            }
+            
+            // 保存
+            localStorage.setItem('gijutsushiKeywords_' + currentLevel, JSON.stringify(fromList));
+            localStorage.setItem('gijutsushiKeywords_' + targetLevel, JSON.stringify(toList));
+            
+            // 統計をリセット
+            if (state.keywordStats[keyword]) {
+                state.keywordStats[keyword].correctCount = 0;
+            }
+            saveKeywordStats();
+            
+            // レベル表示を更新
+            const levelNames = {
+                'new': '❌ 苦手',
+                'learning': '❓ 習得中',
+                'mastered': '⭕ 完璧'
+            };
+            const levelColors = {
+                'new': '#dc3545',
+                'learning': '#ffc107',
+                'mastered': '#28a745'
+            };
+            
+            const levelDisplay = document.getElementById('current-level');
+            if (levelDisplay) {
+                levelDisplay.textContent = levelNames[targetLevel];
+                levelDisplay.style.color = levelColors[targetLevel];
+            }
+            
+            // 完璧に移動した場合は正解扱いにして次へ
+            if (targetLevel === 'mastered') {
+                // 正解音を再生
+                playSuccessSound();
+                
+                // セルを表示
+                state.currentEditingProblem.cells.forEach(cell => {
+                    cell.classList.remove('hidden', 'editing');
+                    cell.classList.add('correct');
+                    const charIndex = parseInt(cell.dataset.charIndex);
+                    const charData = state.characterData[charIndex];
+                    if (charData) {
+                        cell.textContent = charData.char;
+                    }
+                });
+                
+                // 次の問題へ
+                const nextProblem = findNextHiddenProblem();
+                hidePopup();
+                
+                setTimeout(() => {
+                    if (nextProblem) {
+                        state.currentEditingProblem = nextProblem;
+                        state.currentEditingProblemIndex = nextProblem.id;
+                        showPopup(nextProblem);
+                    } else if (elements.autopauseToggle.checked && !state.isPlaying) {
+                        setTimeout(() => {
+                            play();
+                        }, 500);
+                    }
+                }, 300);
+            }
         }
 
         // 答え確認
@@ -2024,6 +2157,37 @@
             }
         }
 
+        // 超低速モードの切り替え
+        function toggleSlowMode() {
+            state.slowMode = !state.slowMode;
+            const btn = event.target;
+            if (state.slowMode) {
+                btn.style.backgroundColor = '#dc3545';
+                btn.style.color = 'white';
+                alert('超低速モード ON\n文字ごとに0.8秒間隔で読み上げます\n通常の速度スライダーは無効になります');
+            } else {
+                btn.style.backgroundColor = '';
+                btn.style.color = '';
+                alert('超低速モード OFF');
+            }
+        }
+
+        // 超低速読み上げ
+        function speakSlowly(text) {
+            const chars = text.split('');
+            chars.forEach((char, i) => {
+                setTimeout(() => {
+                    const utterance = new SpeechSynthesisUtterance(char);
+                    utterance.rate = 0.1;
+                    utterance.lang = 'ja-JP';
+                    if (state.voices.length > 0) {
+                        utterance.voice = state.voices[0];
+                    }
+                    speechSynthesis.speak(utterance);
+                }, i * 800); // 0.8秒ごとに1文字
+            });
+        }
+
         function debounce(func, delay) {
             let timeout;
             return function(...args) {
@@ -2036,6 +2200,100 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+
+        // データ同期パネルの表示切り替え
+        function toggleSyncPanel() {
+            const panel = document.getElementById('sync-panel');
+            if (panel.style.display === 'none') {
+                panel.style.display = 'block';
+            } else {
+                panel.style.display = 'none';
+            }
+        }
+
+        // データをクリップボードにコピー
+        function copyDataToClipboard() {
+            const data = {
+                keywords: {
+                    new: state.keywords.new,
+                    learning: state.keywords.learning,
+                    mastered: state.keywords.mastered
+                },
+                stats: state.keywordStats,
+                mistakes: state.mistakeLog,
+                text: elements.textInput.value,
+                timestamp: new Date().toISOString()
+            };
+            
+            const jsonData = JSON.stringify(data, null, 2);
+            
+            // クリップボードにコピー
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(jsonData).then(() => {
+                    alert('データをクリップボードにコピーしました！\n他のデバイスで貼り付けてください。');
+                }).catch(() => {
+                    // フォールバック
+                    const textarea = document.createElement('textarea');
+                    textarea.value = jsonData;
+                    document.body.appendChild(textarea);
+                    textarea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textarea);
+                    alert('データをコピーしました！');
+                });
+            }
+        }
+
+        // クリップボードからデータを読み込み
+        function loadDataFromClipboard() {
+            const input = document.getElementById('sync-data-input');
+            const jsonData = input.value.trim();
+            
+            if (!jsonData) {
+                alert('データを貼り付けてください');
+                return;
+            }
+            
+            try {
+                const data = JSON.parse(jsonData);
+                
+                // データの妥当性チェック
+                if (!data.keywords || !data.timestamp) {
+                    throw new Error('無効なデータ形式');
+                }
+                
+                if (confirm(`${new Date(data.timestamp).toLocaleString('ja-JP')} のデータを読み込みます。\n現在のデータは上書きされます。よろしいですか？`)) {
+                    // キーワードデータを復元
+                    state.keywords = data.keywords;
+                    state.keywordStats = data.stats || {};
+                    state.mistakeLog = data.mistakes || [];
+                    
+                    // ローカルストレージに保存
+                    localStorage.setItem('gijutsushiKeywords_new', JSON.stringify(state.keywords.new));
+                    localStorage.setItem('gijutsushiKeywords_learning', JSON.stringify(state.keywords.learning));
+                    localStorage.setItem('gijutsushiKeywords_mastered', JSON.stringify(state.keywords.mastered));
+                    localStorage.setItem('gijutsushiKeywordStats', JSON.stringify(state.keywordStats));
+                    localStorage.setItem('gijutsushiMistakes_integrated', JSON.stringify(state.mistakeLog));
+                    
+                    // 本文も復元
+                    if (data.text) {
+                        elements.textInput.value = data.text;
+                        saveTextToLocal();
+                    }
+                    
+                    // 表示を更新
+                    updateManuscript();
+                    alert('データを読み込みました！');
+                    
+                    // パネルを閉じる
+                    toggleSyncPanel();
+                    input.value = '';
+                }
+            } catch (error) {
+                alert('データの読み込みに失敗しました。\n正しい形式のデータを貼り付けてください。');
+                console.error('同期エラー:', error);
+            }
         }
 
         // 初期化実行
