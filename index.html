@@ -502,7 +502,8 @@
                         placeholder="キーワードを改行区切りで入力..."></textarea>
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
                         <button onclick="saveKeywords()" class="primary">保存</button>
-                        <button onclick="moveSelectedKeyword()" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">選択キーワードを移動 →</button>
+                        <button id="moveLeftBtn" onclick="moveSelectedKeyword('left')" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; display: none;">← 苦手移動</button>
+                        <button id="moveRightBtn" onclick="moveSelectedKeyword('right')" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">完璧移動 →</button>
                     </div>
                     <div id="keyword-move-info" style="margin-top: 10px; font-size: 12px; color: #666;">
                         ※キーワードを選択して移動ボタンを押すか、3回正解で自動移動
@@ -648,6 +649,28 @@
             
             // テキストエリアの内容を更新
             elements.keywordTextarea.value = state.keywords[tab].join('\n');
+            
+            // 移動ボタンの表示を更新
+            const moveLeftBtn = document.getElementById('moveLeftBtn');
+            const moveRightBtn = document.getElementById('moveRightBtn');
+            const moveInfo = document.getElementById('keyword-move-info');
+            
+            if (tab === 'new') {
+                moveLeftBtn.style.display = 'none';
+                moveRightBtn.style.display = 'block';
+                moveRightBtn.textContent = '習得中移動 →';
+                moveInfo.innerHTML = '※キーワードを選択して移動ボタンを押すか、<strong>3回正解</strong>で習得中へ自動移動';
+            } else if (tab === 'learning') {
+                moveLeftBtn.style.display = 'block';
+                moveRightBtn.style.display = 'block';
+                moveRightBtn.textContent = '完璧移動 →';
+                moveInfo.innerHTML = '※キーワードを選択して移動ボタンを押すか、<strong>3回正解</strong>で完璧へ自動移動';
+            } else {
+                moveLeftBtn.style.display = 'block';
+                moveLeftBtn.textContent = '← 習得中移動';
+                moveRightBtn.style.display = 'none';
+                moveInfo.innerHTML = '※完璧レベルのキーワードは習得中に戻すことができます';
+            }
         }
 
         // 本文の保存
@@ -665,13 +688,55 @@
             localStorage.setItem('gijutsushiKeywords_' + state.currentKeywordTab, JSON.stringify(state.keywords[state.currentKeywordTab]));
             
             // 虫食い問題を再生成
-            updateManuscript();
+            updateManuscriptPreserveState();
             
             alert(`${state.currentKeywordTab === 'new' ? '苦手' : state.currentKeywordTab === 'learning' ? '習得中' : '完璧'}キーワードを保存しました`);
         }
 
+        // 虫食い状態を保持しながら更新
+        function updateManuscriptPreserveState() {
+            // 現在の虫食い状態を保存
+            const preservedProblems = [];
+            state.problems.forEach(problem => {
+                // まだ隠されている問題のみ保存
+                if (problem.cells.some(cell => cell.classList.contains('hidden'))) {
+                    preservedProblems.push({
+                        answer: problem.answer,
+                        startIndex: problem.startIndex,
+                        endIndex: problem.endIndex
+                    });
+                }
+            });
+            
+            // 通常の更新処理
+            updateManuscript();
+            
+            // 保存された問題を復元
+            preservedProblems.forEach(preserved => {
+                // 新しい問題リストから同じキーワードを探す
+                const newProblem = state.problems.find(p => 
+                    p.answer === preserved.answer && 
+                    p.startIndex === preserved.startIndex
+                );
+                
+                if (newProblem) {
+                    // セルを再度隠す
+                    newProblem.cells.forEach(cell => {
+                        cell.classList.add('hidden');
+                        cell.textContent = '○';
+                        cell.dataset.problemId = newProblem.id;
+                        
+                        // 間違えた単語かチェックして赤色表示
+                        if (isMistakenWord(newProblem.answer)) {
+                            cell.classList.add('mistake');
+                        }
+                    });
+                }
+            });
+        }
+
         // 選択したキーワードを次のレベルへ移動
-        function moveSelectedKeyword() {
+        function moveSelectedKeyword(direction = 'right') {
             const textarea = elements.keywordTextarea;
             const start = textarea.selectionStart;
             const end = textarea.selectionEnd;
@@ -702,11 +767,20 @@
             
             // 次のレベルを決定
             let fromLevel = state.currentKeywordTab;
-            let toLevel = fromLevel === 'new' ? 'learning' : 
+            let toLevel;
+            
+            if (direction === 'right') {
+                toLevel = fromLevel === 'new' ? 'learning' : 
                          fromLevel === 'learning' ? 'mastered' : null;
+            } else {
+                toLevel = fromLevel === 'learning' ? 'new' : 
+                         fromLevel === 'mastered' ? 'learning' : null;
+            }
             
             if (!toLevel) {
-                alert('完璧レベルのキーワードはこれ以上移動できません');
+                alert(direction === 'right' ? 
+                    '完璧レベルのキーワードはこれ以上移動できません' : 
+                    '苦手レベルのキーワードはこれ以上戻せません');
                 return;
             }
             
@@ -716,7 +790,9 @@
             
             // 既に存在するかチェック
             if (toList.includes(keyword)) {
-                alert(`「${keyword}」は既に${toLevel === 'learning' ? '習得中' : '完璧'}リストにあります`);
+                const toLevelName = toLevel === 'new' ? '苦手' : 
+                                   toLevel === 'learning' ? '習得中' : '完璧';
+                alert(`「${keyword}」は既に${toLevelName}リストにあります`);
                 return;
             }
             
@@ -742,9 +818,11 @@
             }
             
             saveKeywordStats();
-            updateManuscript();
+            updateManuscriptPreserveState(); // 状態を保持して更新
             
-            alert(`「${keyword}」を${toLevel === 'learning' ? '習得中' : '完璧'}に移動しました`);
+            const toLevelName = toLevel === 'new' ? '苦手' : 
+                               toLevel === 'learning' ? '習得中' : '完璧';
+            alert(`「${keyword}」を${toLevelName}に移動しました`);
         }
 
         // キーワード統計の保存
@@ -798,6 +876,15 @@
 
             // 初期表示を更新
             elements.keywordTextarea.value = state.keywords.new.join('\n');
+            
+            // 初期のボタン表示設定
+            const moveLeftBtn = document.getElementById('moveLeftBtn');
+            const moveRightBtn = document.getElementById('moveRightBtn');
+            if (moveLeftBtn && moveRightBtn) {
+                moveLeftBtn.style.display = 'none';
+                moveRightBtn.style.display = 'block';
+                moveRightBtn.textContent = '習得中移動 →';
+            }
         }
 
         // 音響効果を初期化
@@ -997,6 +1084,7 @@
             loadSavedSettings();
             loadMistakeLog();
             loadKeywords(); // キーワードを読み込み
+            loadKeywordStats(); // キーワード統計を読み込み
             initializeGrid();
         }
 
@@ -1396,6 +1484,9 @@
                 // 正解音を再生
                 playSuccessSound();
                 
+                // キーワード統計を更新
+                updateKeywordStats(correctAnswer);
+                
                 // 次の問題を先に探す（hidePopup前に）
                 const nextProblem = findNextHiddenProblem();
                 
@@ -1444,6 +1535,75 @@
                     elements.popupEditor.classList.remove('incorrect-feedback');
                 }, 500);
             }
+        }
+
+        // キーワード統計を更新
+        function updateKeywordStats(keyword) {
+            // 統計オブジェクトがなければ作成
+            if (!state.keywordStats[keyword]) {
+                state.keywordStats[keyword] = {
+                    correctCount: 0,
+                    lastCorrect: null
+                };
+            }
+            
+            // 正解回数を増やす
+            state.keywordStats[keyword].correctCount++;
+            state.keywordStats[keyword].lastCorrect = new Date().toISOString();
+            
+            saveKeywordStats();
+            
+            // 自動移動のチェック
+            const correctCount = state.keywordStats[keyword].correctCount;
+            
+            // どのリストに属しているか確認
+            let currentLevel = null;
+            if (state.keywords.new.includes(keyword)) {
+                currentLevel = 'new';
+            } else if (state.keywords.learning.includes(keyword)) {
+                currentLevel = 'learning';
+            } else if (state.keywords.mastered.includes(keyword)) {
+                currentLevel = 'mastered';
+            }
+            
+            // 自動移動の条件（すべて3回に統一）
+            const shouldMove = (currentLevel === 'new' && correctCount >= 3) ||
+                              (currentLevel === 'learning' && correctCount >= 3);
+            
+            if (shouldMove && currentLevel !== 'mastered') {
+                autoMoveKeyword(keyword, currentLevel);
+            }
+        }
+
+        // キーワードを自動移動
+        function autoMoveKeyword(keyword, fromLevel) {
+            const toLevel = fromLevel === 'new' ? 'learning' : 'mastered';
+            
+            // リストから削除
+            const index = state.keywords[fromLevel].indexOf(keyword);
+            if (index > -1) {
+                state.keywords[fromLevel].splice(index, 1);
+            }
+            
+            // リストに追加
+            if (!state.keywords[toLevel].includes(keyword)) {
+                state.keywords[toLevel].push(keyword);
+            }
+            
+            // 保存
+            localStorage.setItem('gijutsushiKeywords_' + fromLevel, JSON.stringify(state.keywords[fromLevel]));
+            localStorage.setItem('gijutsushiKeywords_' + toLevel, JSON.stringify(state.keywords[toLevel]));
+            
+            // 統計をリセット
+            state.keywordStats[keyword].correctCount = 0;
+            saveKeywordStats();
+            
+            // 通知
+            const toLevelName = toLevel === 'learning' ? '習得中' : '完璧';
+            alert(`🎉「${keyword}」をマスター！${toLevelName}レベルに移動しました`);
+            
+            // 虫食い状態を保持しながら更新
+            updateManuscriptPreserveState();
         }
 
         // 答えを見る
