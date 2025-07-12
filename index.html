@@ -435,11 +435,10 @@
                     <label for="autopauseToggle">虫停</label>
                 </div>
                 <div class="control-group">
-                    <label>キーワード虫食い:</label>
                     <div class="keyword-checkbox-group">
                         <label>
                             <input type="checkbox" id="keywordNew" checked>
-                            <span style="color: #dc3545;">❌新規</span>
+                            <span style="color: #dc3545;">❌苦手</span>
                         </label>
                         <label>
                             <input type="checkbox" id="keywordLearning" checked>
@@ -495,13 +494,19 @@
                 </button>
                 <div id="keywords-editor" class="editor-panel" style="display: none;">
                     <div class="keyword-tabs">
-                        <button onclick="selectKeywordTab('new')" class="tab-btn active">❌ 新規</button>
+                        <button onclick="selectKeywordTab('new')" class="tab-btn active">❌ 苦手</button>
                         <button onclick="selectKeywordTab('learning')" class="tab-btn">❓ 習得中</button>
                         <button onclick="selectKeywordTab('mastered')" class="tab-btn">⭕ 完璧</button>
                     </div>
                     <textarea id="keyword-textarea" class="keyword-input" 
                         placeholder="キーワードを改行区切りで入力..."></textarea>
-                    <button onclick="saveKeywords()" class="primary">保存</button>
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <button onclick="saveKeywords()" class="primary">保存</button>
+                        <button onclick="moveSelectedKeyword()" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">選択キーワードを移動 →</button>
+                    </div>
+                    <div id="keyword-move-info" style="margin-top: 10px; font-size: 12px; color: #666;">
+                        ※キーワードを選択して移動ボタンを押すか、3回正解で自動移動
+                    </div>
                 </div>
             </div>
         </div>
@@ -604,7 +609,8 @@
                 learning: [],
                 mastered: []
             },
-            currentKeywordTab: 'new'
+            currentKeywordTab: 'new',
+            keywordStats: {} // キーワードごとの正解回数を記録
         };
 
         const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
@@ -661,7 +667,101 @@
             // 虫食い問題を再生成
             updateManuscript();
             
-            alert(`${state.currentKeywordTab === 'new' ? '新規' : state.currentKeywordTab === 'learning' ? '習得中' : '完璧'}キーワードを保存しました`);
+            alert(`${state.currentKeywordTab === 'new' ? '苦手' : state.currentKeywordTab === 'learning' ? '習得中' : '完璧'}キーワードを保存しました`);
+        }
+
+        // 選択したキーワードを次のレベルへ移動
+        function moveSelectedKeyword() {
+            const textarea = elements.keywordTextarea;
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            const text = textarea.value;
+            
+            // 選択範囲から行を特定
+            const lines = text.split('\n');
+            let currentPos = 0;
+            let selectedLine = -1;
+            
+            for (let i = 0; i < lines.length; i++) {
+                const lineStart = currentPos;
+                const lineEnd = currentPos + lines[i].length;
+                
+                if (start >= lineStart && start <= lineEnd) {
+                    selectedLine = i;
+                    break;
+                }
+                currentPos = lineEnd + 1; // +1 for newline
+            }
+            
+            if (selectedLine === -1 || !lines[selectedLine].trim()) {
+                alert('移動するキーワードを選択してください');
+                return;
+            }
+            
+            const keyword = lines[selectedLine].trim();
+            
+            // 次のレベルを決定
+            let fromLevel = state.currentKeywordTab;
+            let toLevel = fromLevel === 'new' ? 'learning' : 
+                         fromLevel === 'learning' ? 'mastered' : null;
+            
+            if (!toLevel) {
+                alert('完璧レベルのキーワードはこれ以上移動できません');
+                return;
+            }
+            
+            // 移動処理
+            const fromList = state.keywords[fromLevel];
+            const toList = state.keywords[toLevel];
+            
+            // 既に存在するかチェック
+            if (toList.includes(keyword)) {
+                alert(`「${keyword}」は既に${toLevel === 'learning' ? '習得中' : '完璧'}リストにあります`);
+                return;
+            }
+            
+            // リストから削除
+            const index = fromList.indexOf(keyword);
+            if (index > -1) {
+                fromList.splice(index, 1);
+            }
+            
+            // リストに追加
+            toList.push(keyword);
+            
+            // 保存
+            localStorage.setItem('gijutsushiKeywords_' + fromLevel, JSON.stringify(fromList));
+            localStorage.setItem('gijutsushiKeywords_' + toLevel, JSON.stringify(toList));
+            
+            // 表示を更新
+            elements.keywordTextarea.value = fromList.join('\n');
+            
+            // 統計をリセット
+            if (state.keywordStats[keyword]) {
+                state.keywordStats[keyword].correctCount = 0;
+            }
+            
+            saveKeywordStats();
+            updateManuscript();
+            
+            alert(`「${keyword}」を${toLevel === 'learning' ? '習得中' : '完璧'}に移動しました`);
+        }
+
+        // キーワード統計の保存
+        function saveKeywordStats() {
+            localStorage.setItem('gijutsushiKeywordStats', JSON.stringify(state.keywordStats));
+        }
+
+        // キーワード統計の読み込み
+        function loadKeywordStats() {
+            const saved = localStorage.getItem('gijutsushiKeywordStats');
+            if (saved) {
+                try {
+                    state.keywordStats = JSON.parse(saved);
+                } catch (e) {
+                    state.keywordStats = {};
+                }
+            }
         }
 
         // キーワードの読み込み
