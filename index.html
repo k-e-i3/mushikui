@@ -474,11 +474,13 @@
                     </div>
                     <textarea id="keyword-textarea" class="keyword-input" 
                         placeholder="キーワードを改行区切りで入力..."></textarea>
-                    <div style="display: flex; gap: 10px; margin-top: 10px;">
-                        <button onclick="saveKeywords()" class="primary">保存</button>
-                        <button id="moveLeftBtn" onclick="moveSelectedKeyword('left')" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; display: none;">←</button>
-                        <button id="moveRightBtn" onclick="moveSelectedKeyword('right')" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">→</button>
-                    </div>
+<div style="display: flex; gap: 10px; margin-top: 10px;">
+    <button onclick="saveKeywords()" class="primary">保存</button>
+    <button onclick="copyKeywords()" style="background-color: #0366d6; color: white; border: none; padding: 6px 12px; border-radius: 4px;">📋 コピー</button>
+    <button onclick="downloadFromGitHub()" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">📥 GitHubから取得</button>
+    <button id="moveLeftBtn" onclick="moveSelectedKeyword('left')" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; display: none;">←</button>
+    <button id="moveRightBtn" onclick="moveSelectedKeyword('right')" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">→</button>
+</div>
                     <div id="keyword-move-info" style="margin-top: 10px; font-size: 12px; color: #666;">
                         ※キーワードを選択して移動ボタンを押すか、3回正解で自動移動
                     </div>
@@ -2635,6 +2637,31 @@ elements.popupInput.oninput = () => {
             return merged;
         }
 
+// キーワードをクリップボードにコピー
+function copyKeywords() {
+    const currentTab = state.currentKeywordTab;
+    const keywords = state.keywords[currentTab].join('\n');
+    
+    if (navigator.clipboard) {
+        navigator.clipboard.writeText(keywords).then(() => {
+            alert(`${currentTab}キーワードをクリップボードにコピーしました！`);
+        }).catch(() => {
+            // フォールバック
+            const textarea = document.createElement('textarea');
+            textarea.value = keywords;
+            document.body.appendChild(textarea);
+            textarea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textarea);
+            alert('コピーしました！');
+        });
+    }
+}
+
+// GitHubから取得（既存の関数をそのまま使用）
+async function downloadFromGitHub() {
+    // 既存のコードのまま
+}
         // 初期化実行
         initialize();
     </script>
