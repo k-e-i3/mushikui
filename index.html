@@ -483,6 +483,7 @@
                         placeholder="キーワードを改行区切りで入力..."></textarea>
                     <div style="display: flex; gap: 10px; margin-top: 10px;">
                         <button onclick="saveKeywords()" class="primary">保存</button>
+                        <button onclick="resetKeywords()" class="secondary">リセット</button>
                         <button id="moveLeftBtn" onclick="moveSelectedKeyword('left')" style="background-color: #dc3545; color: white; border: none; padding: 6px 12px; border-radius: 4px; display: none;">←</button>
                         <button id="moveRightBtn" onclick="moveSelectedKeyword('right')" style="background-color: #28a745; color: white; border: none; padding: 6px 12px; border-radius: 4px;">→</button>
                     </div>
@@ -722,6 +723,28 @@
             
             alert(`${state.currentKeywordTab === 'new' ? '苦手' : state.currentKeywordTab === 'learning' ? '習得中' : '完璧'}キーワードを保存しました`);
         }
+
+        function resetKeywords() {
+    // 1. ローカルのキーワードデータをリセット
+    localStorage.removeItem("keyword_leaning"); // 保存方法によって要調整
+
+    // 2. サーバーから再取得
+    fetch("keyword_leaning.txt", { cache: "reload" })
+        .then(response => {
+            if (!response.ok) throw new Error("サーバーから取得できません");
+            return response.text();
+        })
+        .then(text => {
+            // 必要に応じて再保存や画面表示
+            localStorage.setItem("keyword_leaning", text);
+            // 画面のtextareaなどに反映する場合
+            document.getElementById("keywordsArea").value = text;
+            alert("リセット＆再取得が完了しました！");
+        })
+        .catch(e => {
+            alert("リセット失敗: " + e.message);
+        });
+}
 
         // 虫食い状態を保持しながら更新
         function updateManuscriptPreserveState() {
