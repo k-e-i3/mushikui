@@ -1545,20 +1545,14 @@ async function resetKeywords() {
             
          // 読み上げ機能
          if (elements.speechToggle.checked) {
-             const utterance = new SpeechSynthesisUtterance(answer);
-             utterance.lang = 'ja-JP';
-             if (state.voices.length > 0) {
-                utterance.voice = state.voices.find(voice => voice.lang === 'ja-JP');
-             }
-
              if (state.slowMode) {
-                // 「超低速モード」では単語全体をゆっくり読む
-                utterance.rate = 0.1; // 0.1だと遅すぎるため調整 (0.2~0.5で調整)
+                 speakSlowly(answer); // ← モバイル対応版の超低速関数
              } else {
-                // 通常モードの速度
-                utterance.rate = state.speechRate;
+                 const utterance = new SpeechSynthesisUtterance(answer);
+                 utterance.rate = state.speechRate;
+                 // ...
+                 speechSynthesis.speak(utterance);
              }
-             speechSynthesis.speak(utterance);
          }
             
             elements.popupInput.value = '';
