@@ -328,6 +328,24 @@ elements.popupInput.addEventListener('input', () => {
 document.getElementById('input-length').textContent = '0';
 document.getElementById('input-counter').style.color = '#666';
 
+        // 入力イベントリスナーを設定（既存のリスナーを削除してから追加）
+elements.popupInput.oninput = () => {
+    const inputLength = elements.popupInput.value.length;
+    document.getElementById('input-length').textContent = inputLength;
+    
+    // 正解の文字数と一致したら色を変える
+    const correctLength = problem.answer.length;
+    const counter = document.getElementById('input-counter');
+    if (inputLength === correctLength) {
+        counter.style.color = '#28a745'; // 緑色
+    } else if (inputLength > correctLength) {
+        counter.style.color = '#dc3545'; // 赤色
+    } else {
+        counter.style.color = '#666'; // グレー
+    }
+};
+
+        
         
         @keyframes shake {
             0%, 100% { transform: translateX(0); }
