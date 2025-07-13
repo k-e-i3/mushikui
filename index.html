@@ -2322,21 +2322,46 @@ function getRandomMaskedHint(answer) {
             }
         }
 
-        // 超低速読み上げ
-        function speakSlowly(text) {
-            const chars = text.split('');
-            chars.forEach((char, i) => {
-                setTimeout(() => {
-                    const utterance = new SpeechSynthesisUtterance(char);
-                    utterance.rate = 0.1;
-                    utterance.lang = 'ja-JP';
-                    if (state.voices.length > 0) {
-                        utterance.voice = state.voices[0];
-                    }
-                    speechSynthesis.speak(utterance);
-                }, i * 800); // 0.8秒ごとに1文字
-            });
+// 【新しい】超低速読み上げ関数（モバイル対応版）
+function speakSlowly(text) {
+    const chars = text.split('');
+    let currentIndex = 0;
+
+    function speakNext() {
+        if (currentIndex >= chars.length) {
+            return; // 全ての文字を読み上げたら終了
         }
+
+        const char = chars[currentIndex];
+        const utterance = new SpeechSynthesisUtterance(char);
+        utterance.rate = 0.1;
+        utterance.lang = 'ja-JP';
+
+        if (state.voices.length > 0) {
+            utterance.voice = state.voices.find(voice => voice.lang === 'ja-JP');
+        }
+
+        // 重要：再生が「終わった」ことをきっかけに、次の文字の再生を呼び出す
+        utterance.onend = () => {
+            currentIndex++;
+            // 少し間を置いてから次の文字へ
+            setTimeout(speakNext, 300); // 0.3秒の間
+        };
+        
+        // エラーハンドリング
+        utterance.onerror = (event) => {
+            console.error('SpeechSynthesisUtterance.onerror', event);
+            // エラーが起きても次の文字に進む
+            currentIndex++;
+            setTimeout(speakNext, 300);
+        };
+
+        speechSynthesis.speak(utterance);
+    }
+
+    // 最初の文字の読み上げを開始
+    speakNext();
+}
 
         function debounce(func, delay) {
             let timeout;
