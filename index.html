@@ -558,12 +558,12 @@
     <!-- ポップアップエディター -->
     <div id="popup-editor">
         <div id="keyword-level-display" style="text-align: center; margin-bottom: 10px;">
-            <span style="font-weight: bold; font-size: 16px;">現在のレベル: </span>
-            <span id="current-level" style="font-size: 16px;"></span>
+            <span style="font-weight: bold; font-size: 14px;">現在のレベル: </span>
+            <span id="current-level" style="font-size: 14px;"></span>
         </div>
         <div id="keyword-info" style="text-align: center; margin-bottom: 10px; font-size: 14px;">
-            <span id="keyword-display" style="font-weight: bold;"></span>
-            <span id="keyword-length" style="color: #666;"></span>
+          <!--  <span id="keyword-display" style="font-weight: bold;"></span>   -->
+            <span id="keyword-length" style="font-weight: bold;"></span>
         </div>
         <div id="keyword-stats-display" style="text-align: center; margin-bottom: 10px; font-size: 13px; color: #666;">
             <span id="correct-count"></span>
@@ -1536,6 +1536,29 @@
             showPopup(problem);
         }
 
+function getRandomMaskedHint(answer) {
+    if (!answer || answer.length === 0) return '';
+
+    const hintCount = Math.ceil(answer.length * 0.25); // ヒントとして見せる文字数 (キーワード長の25%)
+    const indices = Array.from(answer.keys()); // [0, 1, 2, ...] というインデックスの配列を作成
+
+    // インデックスの配列をシャッフル
+    for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+
+    // シャッフルしたインデックスから、ヒントとして見せる分だけ取り出す
+    const hintIndices = new Set(indices.slice(0, hintCount));
+
+    let res = '';
+    for (let i = 0; i < answer.length; i++) {
+        res += hintIndices.has(i) ? answer[i] : '○'; // ヒントのインデックスなら文字を、それ以外は○を表示
+    }
+
+    return res + `（${answer.length}文字）`;
+}
+        
         // ポップアップ表示
         function showPopup(problem) {
             const answer = problem.answer;
@@ -1571,8 +1594,8 @@
             }
             
             // キーワード情報を表示
-            document.getElementById('keyword-display').textContent = `「${answer}」`;
-            document.getElementById('keyword-length').textContent = `（${answer.length}文字）`;
+            // document.getElementById('keyword-display').textContent = ''; // 古い表示を消す
+            document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer); // 新しいヒントを表示
             
             // 統計情報を表示
             const stats = state.keywordStats[answer] || { correctCount: 0 };
