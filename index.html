@@ -1527,9 +1527,12 @@ async function resetKeywords() {
             }
             
             // キーワード情報を表示
+         document.getElementById('keyword-display').textContent = `「${answer}」`;
+         document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer); // ← ここを変更！
             //document.getElementById('keyword-display').textContent = `「${answer}」`;
             //document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer);
-            document.getElementById('keyword-length').textContent = `（${answer.length}文字）`;
+            //document.getElementById('keyword-length').textContent = `（${answer.length}文字）`;
+            
             // 使い方例
             // 統計情報を表示
             const stats = state.keywordStats[answer] || { correctCount: 0 };
@@ -1578,15 +1581,16 @@ async function resetKeywords() {
             elements.popupInput.focus();
         }
 
-    function getRandomMaskedHint(answer) {
-      if (!answer || answer.length === 0) return '';
-      const idx = Math.floor(Math.random() * answer.length);
-      let res = '';
-      for (let i = 0; i < answer.length; i++) {
-        res += (i === idx) ? answer[i] : '○';
-      }
-      return res + `（${answer.length}文字）`;
-    }
+// <script> タグの中のどこか（他の関数の近くなど）に以下を貼り付け
+function getRandomMaskedHint(answer) {
+  if (!answer || answer.length === 0) return '';
+  const idx = Math.floor(Math.random() * answer.length);
+  let res = '';
+  for (let i = 0; i < answer.length; i++) {
+    res += (i === idx) ? answer[i] : '○';
+  }
+  return res + `（${answer.length}文字）`;
+}
         
         // ポップアップ非表示
         function hidePopup() {
