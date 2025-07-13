@@ -1543,20 +1543,23 @@ async function resetKeywords() {
                 requiredSelect.value = requiredCount.toString();
             }
             
-            // 読み上げ機能
-            if (elements.speechToggle.checked) {
-                if (state.slowMode) {
-                    speakSlowly(answer);
-                } else {
-                    const utterance = new SpeechSynthesisUtterance(answer);
-                    utterance.rate = state.speechRate;
-                    utterance.lang = 'ja-JP';
-                    if (state.voices.length > 0) {
-                        utterance.voice = state.voices[0];
-                    }
-                    speechSynthesis.speak(utterance);
-                }
-            }
+         // 読み上げ機能
+         if (elements.speechToggle.checked) {
+             const utterance = new SpeechSynthesisUtterance(answer);
+             utterance.lang = 'ja-JP';
+             if (state.voices.length > 0) {
+                utterance.voice = state.voices.find(voice => voice.lang === 'ja-JP');
+             }
+
+             if (state.slowMode) {
+                // 「超低速モード」では単語全体をゆっくり読む
+                utterance.rate = 0.3; // 0.1だと遅すぎるため調整 (0.2~0.5で調整)
+             } else {
+                // 通常モードの速度
+                utterance.rate = state.speechRate;
+             }
+             speechSynthesis.speak(utterance);
+         }
             
             elements.popupInput.value = '';
             elements.popupInput.style.width = `${Math.max(problem.answer.length + 5, 6)}em`;
