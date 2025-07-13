@@ -1539,7 +1539,7 @@ function getRandomMaskedHint(answer) {
     if (!answer || answer.length === 0) return '';
 
     const hintCount = Math.ceil(answer.length * 0.25); // ヒントとして見せる文字数 (キーワード長の25%)
-    const indices = Array.from(answer.keys()); // [0, 1, 2, ...] というインデックスの配列を作成
+　　const indices = Array.from({length: answer.length}, (_, i) => i);
 
     // インデックスの配列をシャッフル
     for (let i = indices.length - 1; i > 0; i--) {
