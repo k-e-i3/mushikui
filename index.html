@@ -556,6 +556,14 @@
             <span style="font-weight: bold; font-size: 16px;">現在のレベル: </span>
             <span id="current-level" style="font-size: 16px;"></span>
         </div>
+        <div id="keyword-info" style="text-align: center; margin-bottom: 10px; font-size: 14px;">
+            <span id="keyword-display" style="font-weight: bold;"></span>
+            <span id="keyword-length" style="color: #666;"></span>
+        </div>
+        <div id="keyword-stats-display" style="text-align: center; margin-bottom: 10px; font-size: 13px; color: #666;">
+            <span id="correct-count"></span>
+            <span id="mistake-count" style="margin-left: 10px;"></span>
+        </div>
         <input type="text" id="popup-input" placeholder="ここに答えを入力">
         <div class="popup-buttons">
             <button id="submitBtn" class="primary">確定</button>
@@ -567,6 +575,19 @@
             <button onclick="moveKeywordToLevel('new')" style="background-color: #dc3545; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 0 2px;">苦手</button>
             <button onclick="moveKeywordToLevel('learning')" style="background-color: #ffc107; color: black; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 0 2px;">習得中</button>
             <button onclick="moveKeywordToLevel('mastered')" style="background-color: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 12px; margin: 0 2px;">完璧</button>
+        </div>
+        <div style="margin-top: 5px; text-align: center;">
+            <span style="font-size: 11px; color: #666;">必要正解数: </span>
+            <select id="required-correct-count" onchange="updateRequiredCount()" style="font-size: 11px; padding: 2px;">
+                <option value="1">1回</option>
+                <option value="2">2回</option>
+                <option value="3" selected>3回</option>
+                <option value="4">4回</option>
+                <option value="5">5回</option>
+                <option value="7">7回</option>
+                <option value="10">10回</option>
+            </select>
+            <span style="font-size: 11px; color: #666;">で次レベルへ</span>
         </div>
         <div id="feedback-message"></div>
     </div>
@@ -619,7 +640,11 @@
             },
             currentKeywordTab: 'new',
             keywordStats: {}, // キーワードごとの正解回数を記録
-            slowMode: false // 超低速モード
+            slowMode: false, // 超低速モード
+            requiredCounts: { // レベル移動に必要な正解回数
+                new: 3,
+                learning: 3
+            }
         };
 
         const githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
@@ -666,11 +691,11 @@
             if (tab === 'new') {
                 moveLeftBtn.style.display = 'none';
                 moveRightBtn.style.display = 'block';
-                moveInfo.innerHTML = '※キーワードを選択して移動ボタンを押すか、<strong>3回正解</strong>で習得中へ自動移動';
+                moveInfo.innerHTML = `※キーワードを選択して移動ボタンを押すか、<strong>${state.requiredCounts.new}回正解</strong>で習得中へ自動移動`;
             } else if (tab === 'learning') {
                 moveLeftBtn.style.display = 'block';
                 moveRightBtn.style.display = 'block';
-                moveInfo.innerHTML = '※キーワードを選択して移動ボタンを押すか、<strong>3回正解</strong>で完璧へ自動移動';
+                moveInfo.innerHTML = `※キーワードを選択して移動ボタンを押すか、<strong>${state.requiredCounts.learning}回正解</strong>で完璧へ自動移動`;
             } else {
                 moveLeftBtn.style.display = 'block';
                 moveRightBtn.style.display = 'none';
@@ -823,7 +848,8 @@
             }
             
             saveKeywordStats();
-            updateManuscriptPreserveState(); // 状態を保持して更新
+            
+            // 虫食い状態は変更しない（キーワードエディタの表示のみ更新）
             
             const toLevelName = toLevel === 'new' ? '苦手' : 
                                toLevel === 'learning' ? '習得中' : '完璧';
@@ -843,6 +869,16 @@
                     state.keywordStats = JSON.parse(saved);
                 } catch (e) {
                     state.keywordStats = {};
+                }
+            }
+            
+            // 必要正解数の設定も読み込み
+            const savedCounts = localStorage.getItem('gijutsushiRequiredCounts');
+            if (savedCounts) {
+                try {
+                    state.requiredCounts = JSON.parse(savedCounts);
+                } catch (e) {
+                    state.requiredCounts = { new: 3, learning: 3 };
                 }
             }
         }
@@ -1433,6 +1469,24 @@
                 levelDisplay.style.color = levelColor;
             }
             
+            // キーワード情報を表示
+            document.getElementById('keyword-display').textContent = `「${answer}」`;
+            document.getElementById('keyword-length').textContent = `（${answer.length}文字）`;
+            
+            // 統計情報を表示
+            const stats = state.keywordStats[answer] || { correctCount: 0 };
+            const mistakeCount = state.mistakeLog.filter(m => m.word === answer).reduce((sum, m) => sum + (m.count || 1), 0);
+            const requiredCount = getRequiredCount(currentLevel);
+            
+            document.getElementById('correct-count').textContent = `正解: ${stats.correctCount}/${requiredCount}回目`;
+            document.getElementById('mistake-count').textContent = mistakeCount > 0 ? `間違い: ${mistakeCount}回` : '';
+            
+            // 必要正解数の選択状態を設定
+            const requiredSelect = document.getElementById('required-correct-count');
+            if (requiredSelect) {
+                requiredSelect.value = requiredCount.toString();
+            }
+            
             // 読み上げ機能
             if (elements.speechToggle.checked) {
                 if (state.slowMode) {
@@ -1699,9 +1753,9 @@
                 currentLevel = 'mastered';
             }
             
-            // 自動移動の条件（すべて3回に統一）
-            const shouldMove = (currentLevel === 'new' && correctCount >= 3) ||
-                              (currentLevel === 'learning' && correctCount >= 3);
+            // 自動移動の条件（動的な必要正解数を使用）
+            const shouldMove = (currentLevel === 'new' && correctCount >= state.requiredCounts.new) ||
+                              (currentLevel === 'learning' && correctCount >= state.requiredCounts.learning);
             
             if (shouldMove && currentLevel !== 'mastered') {
                 autoMoveKeyword(keyword, currentLevel);
@@ -1735,8 +1789,7 @@
             const toLevelName = toLevel === 'learning' ? '習得中' : '完璧';
             alert(`🎉「${keyword}」をマスター！${toLevelName}レベルに移動しました`);
             
-            // 虫食い状態を保持しながら更新
-            updateManuscriptPreserveState();
+            // 虫食い状態は変更しない（画面更新なし）
         }
 
         // 答えを見る
@@ -2157,6 +2210,36 @@
             }
         }
 
+        // 必要正解数を取得
+        function getRequiredCount(level) {
+            if (level === 'new') return state.requiredCounts.new;
+            if (level === 'learning') return state.requiredCounts.learning;
+            return 0; // 完璧レベルは移動なし
+        }
+
+        // 必要正解数を更新
+        function updateRequiredCount() {
+            const select = document.getElementById('required-correct-count');
+            const value = parseInt(select.value);
+            
+            // 現在編集中のキーワードのレベルを特定
+            if (state.currentEditingProblem) {
+                const keyword = state.currentEditingProblem.answer;
+                if (state.keywords.new.includes(keyword)) {
+                    state.requiredCounts.new = value;
+                } else if (state.keywords.learning.includes(keyword)) {
+                    state.requiredCounts.learning = value;
+                }
+                
+                // 保存
+                localStorage.setItem('gijutsushiRequiredCounts', JSON.stringify(state.requiredCounts));
+                
+                // 表示を更新
+                const stats = state.keywordStats[keyword] || { correctCount: 0 };
+                document.getElementById('correct-count').textContent = `正解: ${stats.correctCount}/${value}回目`;
+            }
+        }
+
         // 超低速モードの切り替え
         function toggleSlowMode() {
             state.slowMode = !state.slowMode;
@@ -2223,6 +2306,7 @@
                 stats: state.keywordStats,
                 mistakes: state.mistakeLog,
                 text: elements.textInput.value,
+                requiredCounts: state.requiredCounts,
                 timestamp: new Date().toISOString()
             };
             
@@ -2245,7 +2329,7 @@
             }
         }
 
-        // クリップボードからデータを読み込み
+        // クリップボードからデータを読み込み（マージ方式）
         function loadDataFromClipboard() {
             const input = document.getElementById('sync-data-input');
             const jsonData = input.value.trim();
@@ -2263,11 +2347,35 @@
                     throw new Error('無効なデータ形式');
                 }
                 
-                if (confirm(`${new Date(data.timestamp).toLocaleString('ja-JP')} のデータを読み込みます。\n現在のデータは上書きされます。よろしいですか？`)) {
-                    // キーワードデータを復元
-                    state.keywords = data.keywords;
-                    state.keywordStats = data.stats || {};
-                    state.mistakeLog = data.mistakes || [];
+                if (confirm(`${new Date(data.timestamp).toLocaleString('ja-JP')} のデータをマージします。\n現在のデータと統合されます。よろしいですか？`)) {
+                    // キーワードデータをマージ
+                    const mergedKeywords = mergeKeywordData(state.keywords, data.keywords);
+                    state.keywords = mergedKeywords;
+                    
+                    // 統計情報もマージ（大きい方を採用）
+                    if (data.stats) {
+                        Object.keys(data.stats).forEach(keyword => {
+                            if (!state.keywordStats[keyword] || 
+                                (data.stats[keyword].correctCount > state.keywordStats[keyword].correctCount)) {
+                                state.keywordStats[keyword] = data.stats[keyword];
+                            }
+                        });
+                    }
+                    
+                    // 間違いログもマージ
+                    if (data.mistakes) {
+                        data.mistakes.forEach(mistake => {
+                            const existing = state.mistakeLog.find(m => m.word === mistake.word);
+                            if (existing) {
+                                existing.count = Math.max(existing.count || 1, mistake.count || 1);
+                                if (mistake.lastMistake > existing.lastMistake) {
+                                    existing.lastMistake = mistake.lastMistake;
+                                }
+                            } else {
+                                state.mistakeLog.push(mistake);
+                            }
+                        });
+                    }
                     
                     // ローカルストレージに保存
                     localStorage.setItem('gijutsushiKeywords_new', JSON.stringify(state.keywords.new));
@@ -2276,15 +2384,22 @@
                     localStorage.setItem('gijutsushiKeywordStats', JSON.stringify(state.keywordStats));
                     localStorage.setItem('gijutsushiMistakes_integrated', JSON.stringify(state.mistakeLog));
                     
-                    // 本文も復元
-                    if (data.text) {
+                    // 本文も必要に応じて更新
+                    if (data.text && !elements.textInput.value.trim()) {
                         elements.textInput.value = data.text;
                         saveTextToLocal();
                     }
                     
-                    // 表示を更新
-                    updateManuscript();
-                    alert('データを読み込みました！');
+                    // 必要正解数の設定もマージ
+                    if (data.requiredCounts) {
+                        state.requiredCounts = data.requiredCounts;
+                        localStorage.setItem('gijutsushiRequiredCounts', JSON.stringify(state.requiredCounts));
+                    }
+                    
+                    // キーワードタブの表示を更新
+                    elements.keywordTextarea.value = state.keywords[state.currentKeywordTab].join('\n');
+                    
+                    alert('データをマージしました！\n虫食い問題は現在の状態を維持します。');
                     
                     // パネルを閉じる
                     toggleSyncPanel();
@@ -2294,6 +2409,53 @@
                 alert('データの読み込みに失敗しました。\n正しい形式のデータを貼り付けてください。');
                 console.error('同期エラー:', error);
             }
+        }
+
+        // キーワードデータのマージ処理
+        function mergeKeywordData(current, incoming) {
+            const merged = {
+                new: [...current.new],
+                learning: [...current.learning],
+                mastered: [...current.mastered]
+            };
+            
+            // 各キーワードを適切なレベルに配置
+            const allKeywords = new Set([
+                ...current.new, ...current.learning, ...current.mastered,
+                ...incoming.new, ...incoming.learning, ...incoming.mastered
+            ]);
+            
+            allKeywords.forEach(keyword => {
+                // 現在のレベルと読み込みデータのレベルを確認
+                let currentLevel = null;
+                let incomingLevel = null;
+                
+                if (current.new.includes(keyword)) currentLevel = 'new';
+                else if (current.learning.includes(keyword)) currentLevel = 'learning';
+                else if (current.mastered.includes(keyword)) currentLevel = 'mastered';
+                
+                if (incoming.new.includes(keyword)) incomingLevel = 'new';
+                else if (incoming.learning.includes(keyword)) incomingLevel = 'learning';
+                else if (incoming.mastered.includes(keyword)) incomingLevel = 'mastered';
+                
+                // より進んでいる方を採用
+                const levelPriority = { 'new': 0, 'learning': 1, 'mastered': 2 };
+                const finalLevel = (currentLevel && incomingLevel) ? 
+                    (levelPriority[currentLevel] > levelPriority[incomingLevel] ? currentLevel : incomingLevel) :
+                    (currentLevel || incomingLevel);
+                
+                // 重複を削除
+                merged.new = merged.new.filter(k => k !== keyword);
+                merged.learning = merged.learning.filter(k => k !== keyword);
+                merged.mastered = merged.mastered.filter(k => k !== keyword);
+                
+                // 適切なレベルに追加
+                if (finalLevel) {
+                    merged[finalLevel].push(keyword);
+                }
+            });
+            
+            return merged;
         }
 
         // 初期化実行
