@@ -969,18 +969,7 @@ async function resetKeywords() {
             } catch (error) {
                 console.log('GitHubからのキーワード読み込みエラー:', error);
             }
-
-function getRandomMaskedHint(answer) {
-    if (!answer || answer.length === 0) return '';
-    const idx = Math.floor(Math.random() * answer.length); // ランダムなインデックス
-    let res = '';
-    for (let i = 0; i < answer.length; i++) {
-        res += (i === idx) ? answer[i] : '○';
-    }
-    return res + `（${answer.length}文字）`;
-}
-
-            
+         
             // 初期表示を更新
             elements.keywordTextarea.value = state.keywords.new.join('\n');
             
@@ -1528,6 +1517,8 @@ function getRandomMaskedHint(answer) {
                 levelColor = '#28a745';
             }
             
+
+
             // レベル表示を更新
             const levelDisplay = document.getElementById('current-level');
             if (levelDisplay) {
@@ -1537,7 +1528,7 @@ function getRandomMaskedHint(answer) {
             
             // キーワード情報を表示
             //document.getElementById('keyword-display').textContent = `「${answer}」`;
-            document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer);
+            //document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer);
             document.getElementById('keyword-length').textContent = `（${answer.length}文字）`;
             // 使い方例
             // 統計情報を表示
@@ -1587,6 +1578,16 @@ function getRandomMaskedHint(answer) {
             elements.popupInput.focus();
         }
 
+    function getRandomMaskedHint(answer) {
+      if (!answer || answer.length === 0) return '';
+      const idx = Math.floor(Math.random() * answer.length);
+      let res = '';
+      for (let i = 0; i < answer.length; i++) {
+        res += (i === idx) ? answer[i] : '○';
+      }
+      return res + `（${answer.length}文字）`;
+    }
+        
         // ポップアップ非表示
         function hidePopup() {
             document.querySelectorAll('.cell.editing').forEach(cell => {
