@@ -1573,15 +1573,27 @@ async function resetKeywords() {
             elements.popupInput.focus();
         }
 
-// <script> タグの中のどこか（他の関数の近くなど）に以下を貼り付け
 function getRandomMaskedHint(answer) {
-  if (!answer || answer.length === 0) return '';
-  const idx = Math.floor(Math.random() * answer.length);
-  let res = '';
-  for (let i = 0; i < answer.length; i++) {
-    res += (i === idx) ? answer[i] : '○';
-  }
-  return res + `（${answer.length}文字）`;
+    if (!answer || answer.length === 0) return '';
+
+    const hintCount = Math.ceil(answer.length * 0.25); // ヒントとして見せる文字数 (キーワード長の25%)
+    const indices = Array.from(answer.keys()); // [0, 1, 2, ...] というインデックスの配列を作成
+
+    // インデックスの配列をシャッフル
+    for (let i = indices.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+
+    // シャッフルしたインデックスから、ヒントとして見せる分だけ取り出す
+    const hintIndices = new Set(indices.slice(0, hintCount));
+
+    let res = '';
+    for (let i = 0; i < answer.length; i++) {
+        res += hintIndices.has(i) ? answer[i] : '○'; // ヒントのインデックスなら文字を、それ以外は○を表示
+    }
+
+    return res + `（${answer.length}文字）`;
 }
         
         // ポップアップ非表示
