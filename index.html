@@ -558,8 +558,7 @@
             <span id="current-level" style="font-size: 16px;"></span>
         </div>
         <div id="keyword-info" style="text-align: center; margin-bottom: 10px; font-size: 14px;">
-            <span id="keyword-display" style="font-weight: bold;"></span>
-            <span id="keyword-length" style="color: #666;"></span>
+            <span id="keyword-length" style="font-weight: bold;"></span>
         </div>
         <div id="keyword-stats-display" style="text-align: center; margin-bottom: 10px; font-size: 13px; color: #666;">
             <span id="correct-count"></span>
@@ -1527,11 +1526,7 @@ async function resetKeywords() {
             }
             
             // キーワード情報を表示
-         document.getElementById('keyword-display').textContent = `「${answer}」`;
          document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer); // ← ここを変更！
-            //document.getElementById('keyword-display').textContent = `「${answer}」`;
-            //document.getElementById('keyword-length').textContent = getRandomMaskedHint(answer);
-            //document.getElementById('keyword-length').textContent = `（${answer.length}文字）`;
             
             // 使い方例
             // 統計情報を表示
