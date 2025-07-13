@@ -300,60 +300,6 @@
             max-width: 500px;
         }
 
-        #popup-editor.incorrect-feedback {
-            animation: shake 0.5s;
-            border-color: var(--danger-color);
-        }
-
-// bindEvents関数内に追加
-elements.popupInput.addEventListener('input', () => {
-    const inputLength = elements.popupInput.value.length;
-    document.getElementById('input-length').textContent = inputLength;
-    
-    // 正解の文字数と一致したら色を変える
-    if (state.currentEditingProblem) {
-        const correctLength = state.currentEditingProblem.answer.length;
-        const counter = document.getElementById('input-counter');
-        if (inputLength === correctLength) {
-            counter.style.color = '#28a745'; // 緑色
-        } else if (inputLength > correctLength) {
-            counter.style.color = '#dc3545'; // 赤色
-        } else {
-            counter.style.color = '#666'; // グレー
-        }
-    }
-});
-
-// showPopup関数内でカウンターをリセット
-document.getElementById('input-length').textContent = '0';
-document.getElementById('input-counter').style.color = '#666';
-
-        // 入力イベントリスナーを設定（既存のリスナーを削除してから追加）
-elements.popupInput.oninput = () => {
-    const inputLength = elements.popupInput.value.length;
-    document.getElementById('input-length').textContent = inputLength;
-    
-    // 正解の文字数と一致したら色を変える
-    const correctLength = problem.answer.length;
-    const counter = document.getElementById('input-counter');
-    if (inputLength === correctLength) {
-        counter.style.color = '#28a745'; // 緑色
-    } else if (inputLength > correctLength) {
-        counter.style.color = '#dc3545'; // 赤色
-    } else {
-        counter.style.color = '#666'; // グレー
-    }
-};
-
-        
-        
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            25% { transform: translateX(-6px); }
-            50% { transform: translateX(6px); }
-            75% { transform: translateX(-6px); }
-        }
-
         #popup-input {
             width: 100%;
             padding: 8px;
@@ -1684,6 +1630,51 @@ function getRandomMaskedHint(answer) {
             elements.popupEditor.style.display = 'block';
             elements.popupEditor.style.top = `${window.scrollY + rect.top - elements.popupEditor.offsetHeight - 10}px`;
             elements.popupEditor.style.left = `${window.scrollX + rect.left + (rect.width / 2) - (elements.popupEditor.offsetWidth / 2)}px`;
+
+
+            
+
+
+// bindEvents関数内に追加
+elements.popupInput.addEventListener('input', () => {
+    const inputLength = elements.popupInput.value.length;
+    document.getElementById('input-length').textContent = inputLength;
+    
+    // 正解の文字数と一致したら色を変える
+    if (state.currentEditingProblem) {
+        const correctLength = state.currentEditingProblem.answer.length;
+        const counter = document.getElementById('input-counter');
+        if (inputLength === correctLength) {
+            counter.style.color = '#28a745'; // 緑色
+        } else if (inputLength > correctLength) {
+            counter.style.color = '#dc3545'; // 赤色
+        } else {
+            counter.style.color = '#666'; // グレー
+        }
+    }
+});
+
+// showPopup関数内でカウンターをリセット
+document.getElementById('input-length').textContent = '0';
+document.getElementById('input-counter').style.color = '#666';
+
+        // 入力イベントリスナーを設定（既存のリスナーを削除してから追加）
+elements.popupInput.oninput = () => {
+    const inputLength = elements.popupInput.value.length;
+    document.getElementById('input-length').textContent = inputLength;
+    
+    // 正解の文字数と一致したら色を変える
+    const correctLength = problem.answer.length;
+    const counter = document.getElementById('input-counter');
+    if (inputLength === correctLength) {
+        counter.style.color = '#28a745'; // 緑色
+    } else if (inputLength > correctLength) {
+        counter.style.color = '#dc3545'; // 赤色
+    } else {
+        counter.style.color = '#666'; // グレー
+    }
+};
+
             
             elements.popupInput.focus();
         }
