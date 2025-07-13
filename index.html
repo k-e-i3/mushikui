@@ -1553,7 +1553,7 @@ async function resetKeywords() {
 
              if (state.slowMode) {
                 // 「超低速モード」では単語全体をゆっくり読む
-                utterance.rate = 0.3; // 0.1だと遅すぎるため調整 (0.2~0.5で調整)
+                utterance.rate = 0.1; // 0.1だと遅すぎるため調整 (0.2~0.5で調整)
              } else {
                 // 通常モードの速度
                 utterance.rate = state.speechRate;
