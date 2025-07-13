@@ -2364,12 +2364,8 @@ function speakSlowly(text) {
             currentIndex++;
             setTimeout(speakNext, 300);
         };
-
         speechSynthesis.speak(utterance);
     }
-
-    // 最初の文字の読み上げを開始
-    speakNext();
 }
 
         function debounce(func, delay) {
