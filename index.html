@@ -724,26 +724,58 @@
             alert(`${state.currentKeywordTab === 'new' ? '苦手' : state.currentKeywordTab === 'learning' ? '習得中' : '完璧'}キーワードを保存しました`);
         }
 
-        function resetKeywords() {
-    // 1. ローカルのキーワードデータをリセット
-    localStorage.removeItem("keyword_leaning"); // 保存方法によって要調整
+async function resetKeywords() {
+    if (!confirm('全てのキーワード（苦手、習得中、完璧）をリセットし、GitHubから最新版を再取得しますか？\n現在の習熟度データは失われます。')) {
+        return;
+    }
 
-    // 2. サーバーから再取得
-    fetch("keyword_leaning.txt", { cache: "reload" })
-        .then(response => {
-            if (!response.ok) throw new Error("サーバーから取得できません");
-            return response.text();
-        })
-        .then(text => {
-            // 必要に応じて再保存や画面表示
-            localStorage.setItem("keyword_leaning", text);
-            // 画面のtextareaなどに反映する場合
-            document.getElementById("keywordsArea").value = text;
-            alert("リセット＆再取得が完了しました！");
-        })
-        .catch(e => {
-            alert("リセット失敗: " + e.message);
-        });
+    const levels = ['new', 'learning', 'mastered'];
+    
+    try {
+        // 1. 全てのレベルのキーワード取得を並行して実行
+        await Promise.all(levels.map(async (level) => {
+            const storageKey = `gijutsushiKeywords_${level}`;
+            const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/keyword_${level}.txt?t=${new Date().getTime()}`;
+
+            // ローカルストレージをクリア
+            localStorage.removeItem(storageKey);
+
+            // GitHubから再取得
+            const response = await fetch(url, { cache: 'no-store' });
+            if (!response.ok) {
+                // ファイルが存在しない場合は空にする（エラーにしない）
+                console.log(`keyword_${level}.txt が見つかりません。`);
+                state.keywords[level] = [];
+                localStorage.setItem(storageKey, JSON.stringify([]));
+                return;
+            }
+
+            const text = await response.text();
+            const keywords = text.split('\n').map(k => k.trim()).filter(k => k);
+            
+            // stateとローカルストレージを更新
+            state.keywords[level] = keywords;
+            localStorage.setItem(storageKey, JSON.stringify(keywords));
+        }));
+        
+        // 2. キーワード統計と間違いログもリセット
+        state.keywordStats = {};
+        localStorage.removeItem('gijutsushiKeywordStats');
+        clearMistakeLog(); // 既存の間違いログクリア関数を呼び出す
+        
+        // 3. 画面表示を更新
+        // 現在開いているタブのテキストエリアを更新
+        elements.keywordTextarea.value = state.keywords[state.currentKeywordTab].join('\n');
+        
+        // 原稿用紙の虫食い表示を更新
+        updateManuscript();
+
+        alert('全てのキーワードのリセットが完了しました！');
+
+    } catch (e) {
+        alert("リセット処理中にエラーが発生しました: " + e.message);
+        console.error(e);
+    }
 }
 
         // 虫食い状態を保持しながら更新
