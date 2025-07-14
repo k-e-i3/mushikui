@@ -1514,19 +1514,42 @@
             });
         }
 
-        // セルクリック処理
-        function handleCellClick(event) {
-            const cell = event.target;
-            if (!cell.classList.contains('hidden') || !cell.dataset.problemId) return;
+// セルクリック処理
+function handleCellClick(event) {
+    const cell = event.target;
+    
+    // 正解済みのセルをクリックした場合、虫食いに戻す
+    if (cell.classList.contains('correct') && cell.dataset.problemId) {
+        const problemId = parseInt(cell.dataset.problemId);
+        const problem = state.problems[problemId];
+        if (!problem) return;
+        
+        // 虫食い状態に戻す
+        problem.cells.forEach(c => {
+            c.classList.remove('correct');
+            c.classList.add('hidden');
+            c.textContent = '○';
+            
+            // 間違えた単語かチェックして赤色表示
+            if (isMistakenWord(problem.answer)) {
+                c.classList.add('mistake');
+            }
+        });
+        
+        return;
+    }
+    
+    // 通常の虫食いクリック処理
+    if (!cell.classList.contains('hidden') || !cell.dataset.problemId) return;
 
-            const problemId = parseInt(cell.dataset.problemId);
-            const problem = state.problems[problemId];
-            if (!problem) return;
+    const problemId = parseInt(cell.dataset.problemId);
+    const problem = state.problems[problemId];
+    if (!problem) return;
 
-            state.currentEditingProblem = problem;
-            state.currentEditingProblemIndex = problemId; // インデックスを記録
-            showPopup(problem);
-        }
+    state.currentEditingProblem = problem;
+    state.currentEditingProblemIndex = problemId;
+    showPopup(problem);
+}
 
 function getRandomMaskedHint(answer) {
     if (!answer || answer.length === 0) return '';
