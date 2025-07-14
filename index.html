@@ -2657,10 +2657,33 @@ function copyKeywords() {
         });
     }
 }
-
-// GitHubから取得（既存の関数をそのまま使用）
+// GitHubから取得
 async function downloadFromGitHub() {
-    // 既存のコードのまま
+    const currentTab = state.currentKeywordTab;
+    const tabNames = { 'new': '苦手', 'learning': '習得中', 'mastered': '完璧', 'random': 'ランダム' };
+    
+    if (!confirm(`GitHubから${tabNames[currentTab]}キーワードを取得して現在の内容を上書きしますか？`)) {
+        return;
+    }
+    
+    try {
+        const url = `https://${githubInfo.username}.github.io/${githubInfo.repo}/keyword_${currentTab}.txt?t=${new Date().getTime()}`;
+        const response = await fetch(url, { cache: 'no-store' });
+        if (response.ok) {
+            const text = await response.text();
+            state.keywords[currentTab] = text.split('\n').map(k => k.trim()).filter(k => k);
+            
+            localStorage.setItem('gijutsushiKeywords_' + currentTab, JSON.stringify(state.keywords[currentTab]));
+            elements.keywordTextarea.value = state.keywords[currentTab].join('\n');
+            
+            updateManuscriptPreserveState();
+            alert(`GitHubから${tabNames[currentTab]}キーワードを取得しました`);
+        } else {
+            alert('GitHubからの取得に失敗しました');
+        }
+    } catch (error) {
+        alert('エラー: ' + error.message);
+    }
 }
         // 初期化実行
         initialize();
