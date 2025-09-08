@@ -123,7 +123,7 @@
             padding: 50vh 20px;
             font-size: 24px;
             line-height: 1.8;
-            transition: transform 0.3s ease-in-out;
+            transition: none;
             transform: translateY(0px);
             box-sizing: border-box;
         }
@@ -527,7 +527,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         scrollToCurrentWord() { if (this.state.currentWordIndex < 0) return; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (!currentWordEl) return; const guideLineTop = this.els.guideLine.getBoundingClientRect().top; const wordTop = currentWordEl.getBoundingClientRect().top; const scrollOffset = wordTop - guideLineTop; const currentTransform = new DOMMatrix(getComputedStyle(this.els.textContent).transform); const newTranslateY = currentTransform.m42 - scrollOffset; this.els.textContent.style.transform = `translateY(${newTranslateY}px)`; }
         
-        reset() { this.pause(); this.state.currentWordIndex = -1; this.els.textContent.style.transition = 'none'; this.els.textContent.style.transform = 'translateY(0px)'; setTimeout(() => { this.els.textContent.style.transition = 'transform 0.3s ease-in-out'; }, 50); this.state.words.forEach(wordEl => { wordEl.classList.remove('highlight'); wordEl.querySelectorAll('.char.revealed').forEach(char => { char.classList.remove('revealed'); }); }); this.updateInfo(); }
+        reset() { this.pause(); this.state.currentWordIndex = -1; this.els.textContent.style.transition = 'none'; this.els.textContent.style.transform = 'translateY(0px)'; setTimeout(() => { this.els.textContent.style.transition = 'none'; }, 50); this.state.words.forEach(wordEl => { wordEl.classList.remove('highlight'); wordEl.querySelectorAll('.char.revealed').forEach(char => { char.classList.remove('revealed'); }); }); this.updateInfo(); }
 
         updateInfo() { if (this.state.currentWordIndex < 0 || this.state.words.length === 0) { this.els.progressInfo.textContent = '0'; this.els.wordInfo.textContent = '-'; return; } const progress = Math.round(((this.state.currentWordIndex + 1) / this.state.words.length) * 100); this.els.progressInfo.textContent = `${progress}`; const currentWordEl = this.state.words[this.state.currentWordIndex]; if (currentWordEl) { this.els.wordInfo.textContent = currentWordEl.textContent.trim(); } }
         
