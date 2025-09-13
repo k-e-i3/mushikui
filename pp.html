@@ -1,0 +1,1242 @@
+```html
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>高度なフローチャート作成ツール</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 700px;
+            border: 1px solid #ccc;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        #svg-canvas {
+            width: 100%;
+            height: 100%;
+            background-color: white;
+        }
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 8px;
+            width: 100%;
+        }
+        button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .tool-buttons {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .tool-button {
+            padding: 6px 12px;
+            cursor: pointer;
+            background-color: #ddd;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .tool-button.active {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .node {
+            cursor: move;
+            user-select: none;
+            transform-origin: center;
+        }
+        .node-content {
+            padding: 8px;
+            text-align: center;
+            word-wrap: break-word;
+            font-size: 14px;
+            font-weight: normal;
+        }
+        .start-end {
+            width: 100px;
+            height: 50px;
+            border-radius: 50%;
+            background-color: #ffcc00;
+            border: 2px solid #333;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .process {
+            width: 120px;
+            height: 60px;
+            background-color: #ffffff;
+            border: 2px solid #333;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .decision {
+            width: 80px;
+            height: 80px;
+            background-color: #ffffff;
+            border: 2px solid #333;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transform: rotate(45deg);
+        }
+        .input-output {
+            width: 120px;
+            height: 60px;
+            background-color: #ffffff;
+            border: 2px solid #333;
+            border-radius: 5px;
+            transform: skew(20deg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .arrow {
+            stroke: #333;
+            stroke-width: 2;
+            fill: none;
+            marker-end: url(#arrowhead);
+        }
+        .arrow-label {
+            font-size: 12px;
+            fill: #333;
+            pointer-events: none;
+        }
+        .connection-point {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background-color: #4CAF50;
+            position: absolute;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .connection-point:hover {
+            opacity: 1;
+        }
+        .input {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-right: 10px;
+            width: 150px;
+        }
+        .color-picker {
+            margin-left: 10px;
+        }
+        .node-properties {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .properties-panel {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background-color: #f0f0f0;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 300px;
+            z-index: 100;
+            display: none;
+        }
+        .properties-panel h3 {
+            margin: 0 0 10px 0;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #ddd;
+        }
+        .properties-group {
+            margin-bottom: 15px;
+        }
+        .properties-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .properties-group input, .properties-group select {
+            width: 100%;
+            padding: 6px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            margin-bottom: 8px;
+        }
+        .properties-group button {
+            margin-top: 5px;
+            padding: 5px 10px;
+            background-color: #2196F3;
+        }
+        .delete-btn {
+            background-color: #f44336 !important;
+        }
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .status-bar {
+            margin-top: 10px;
+            color: #666;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>高度なフローチャート作成ツール</h1>
+        
+        <div class="controls">
+            <select class="input" id="nodeType">
+                <option value="start-end">開始/終了</option>
+                <option value="process">処理</option>
+                <option value="decision">判断</option>
+                <option value="input-output">入出力</option>
+            </select>
+            <input type="text" class="input" id="nodeText" placeholder="ノードのテキストを入力">
+            <input type="color" class="color-picker" id="nodeColor" value="#ffffff">
+            <button id="addNode">ノード追加</button>
+            <button id="clearCanvas">クリア</button>
+            <button id="downloadSVG">SVGで保存</button>
+            <button id="downloadPNG">PNGで保存</button>
+        </div>
+
+        <div class="tool-buttons">
+            <button class="tool-button active" id="selectTool">選択</button>
+            <button class="tool-button" id="drawTool">線を引く</button>
+            <button class="tool-button" id="deleteTool">削除</button>
+        </div>
+
+        <div id="canvas-container">
+            <svg id="svg-canvas"></svg>
+        </div>
+
+        <div class="properties-panel" id="propertiesPanel">
+            <h3>プロパティ</h3>
+            <div class="properties-group">
+                <label for="propertyName">名前:</label>
+                <input type="text" id="propertyName" readonly>
+            </div>
+            <div class="properties-group">
+                <label for="propertyText">テキスト:</label>
+                <input type="text" id="propertyText">
+            </div>
+            <div class="properties-group">
+                <label for="propertyColor">色:</label>
+                <input type="color" id="propertyColor">
+            </div>
+            <div class="properties-group">
+                <label for="propertyWidth">幅:</label>
+                <input type="number" id="propertyWidth" min="50" max="300" step="10">
+            </div>
+            <div class="properties-group">
+                <label for="propertyHeight">高さ:</label>
+                <input type="number" id="propertyHeight" min="30" max="200" step="10">
+            </div>
+            <div class="properties-group">
+                <button id="applyChanges">変更を適用</button>
+                <button class="delete-btn" id="deleteSelected">削除</button>
+            </div>
+        </div>
+
+        <div class="status-bar" id="statusBar">状態: 選択モード</div>
+
+        <div class="export-controls">
+            <button id="exportJson">JSONでエクスポート</button>
+            <button id="importJson">JSONでインポート</button>
+        </div>
+    </div>
+
+    <!-- SVG定義（矢印のマーカー） -->
+    <svg style="position: absolute; width: 0; height: 0; visibility: hidden;">
+        <defs>
+            <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto" markerUnits="strokeWidth">
+                <path d="M0,0 L0,6 L9,3 z" fill="#333" />
+            </marker>
+        </defs>
+    </svg>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const canvas = document.getElementById('svg-canvas');
+            const addNodeBtn = document.getElementById('addNode');
+            const clearBtn = document.getElementById('clearCanvas');
+            const downloadSVGBtn = document.getElementById('downloadSVG');
+            const downloadPNGBtn = document.getElementById('downloadPNG');
+            const exportJsonBtn = document.getElementById('exportJson');
+            const importJsonBtn = document.getElementById('importJson');
+            const nodeText = document.getElementById('nodeText');
+            const nodeType = document.getElementById('nodeType');
+            const nodeColor = document.getElementById('nodeColor');
+            const selectTool = document.getElementById('selectTool');
+            const drawTool = document.getElementById('drawTool');
+            const deleteTool = document.getElementById('deleteTool');
+            const propertiesPanel = document.getElementById('propertiesPanel');
+            const propertyNameInput = document.getElementById('propertyName');
+            const propertyTextInput = document.getElementById('propertyText');
+            const propertyColorInput = document.getElementById('propertyColor');
+            const propertyWidthInput = document.getElementById('propertyWidth');
+            const propertyHeightInput = document.getElementById('propertyHeight');
+            const applyChangesBtn = document.getElementById('applyChanges');
+            const deleteSelectedBtn = document.getElementById('deleteSelected');
+            const statusBar = document.getElementById('statusBar');
+
+            let selectedTool = 'select';
+            let nodes = [];
+            let arrows = [];
+            let selectedNode = null;
+            let draggingNode = null;
+            let drawingArrow = false;
+            let arrowStart = null;
+            let currentArrowLine = null;
+            let connectionPoints = [];
+            let nextNodeId = 1;
+
+            // ツール切り替え
+            [selectTool, drawTool, deleteTool].forEach(tool => {
+                tool.addEventListener('click', () => {
+                    [selectTool, drawTool, deleteTool].forEach(t => t.classList.remove('active'));
+                    tool.classList.add('active');
+                    selectedTool = tool.id.replace('Tool', '');
+                    
+                    if (selectedTool === 'select') {
+                        statusBar.textContent = '状態: 選択モード';
+                        clearSelection();
+                    } else if (selectedTool === 'draw') {
+                        statusBar.textContent = '状態: 線を引くモード';
+                        clearSelection();
+                    } else if (selectedTool === 'delete') {
+                        statusBar.textContent = '状態: 削除モード';
+                        clearSelection();
+                    }
+                });
+            });
+
+            // ノード追加
+            addNodeBtn.addEventListener('click', () => {
+                const text = nodeText.value || 'テキスト';
+                const type = nodeType.value;
+                const color = nodeColor.value;
+
+                // ノードの基本サイズ
+                const sizeMap = {
+                    'start-end': { width: 100, height: 50 },
+                    'process': { width: 120, height: 60 },
+                    'decision': { width: 80, height: 80 },
+                    'input-output': { width: 120, height: 60 }
+                };
+
+                const size = sizeMap[type] || { width: 120, height: 60 };
+                
+                // ランダムな位置に配置
+                const x = Math.random() * (canvas.clientWidth - size.width - 100) + 50;
+                const y = Math.random() * (canvas.clientHeight - size.height - 100) + 50;
+
+                const nodeId = `node-${nextNodeId++}`;
+                const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                nodeGroup.setAttribute('id', nodeId);
+                nodeGroup.setAttribute('class', 'node');
+                nodeGroup.setAttribute('data-type', type);
+
+                // ノードの形状
+                let shape;
+                if (type === 'start-end') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                    shape.setAttribute('cx', size.width / 2);
+                    shape.setAttribute('cy', size.height / 2);
+                    shape.setAttribute('rx', size.width / 2);
+                    shape.setAttribute('ry', size.height / 2);
+                    shape.setAttribute('fill', color);
+                    shape.setAttribute('stroke', '#333');
+                    shape.setAttribute('stroke-width', '2');
+                } else if (type === 'process') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    shape.setAttribute('x', 0);
+                    shape.setAttribute('y', 0);
+                    shape.setAttribute('width', size.width);
+                    shape.setAttribute('height', size.height);
+                    shape.setAttribute('fill', color);
+                    shape.setAttribute('stroke', '#333');
+                    shape.setAttribute('stroke-width', '2');
+                    shape.setAttribute('rx', '5');
+                    shape.setAttribute('ry', '5');
+                } else if (type === 'decision') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    const points = [
+                        `${size.width / 2},0`,
+                        `${size.width},${size.height / 2}`,
+                        `${size.width / 2},${size.height}`,
+                        `0,${size.height / 2}`
+                    ].join(' ');
+                    shape.setAttribute('points', points);
+                    shape.setAttribute('fill', color);
+                    shape.setAttribute('stroke', '#333');
+                    shape.setAttribute('stroke-width', '2');
+                } else if (type === 'input-output') {
+                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    const points = [
+                        `${size.width / 4},0`,
+                        `${size.width * 3/4},0`,
+                        `${size.width},${size.height / 2}`,
+                        `${size.width * 3/4},${size.height}`,
+                        `${size.width / 4},${size.height}`,
+                        `0,${size.height / 2}`
+                    ].join(' ');
+                    shape.setAttribute('points', points);
+                    shape.setAttribute('fill', color);
+                    shape.setAttribute('stroke', '#333');
+                    shape.setAttribute('stroke-width', '2');
+                }
+
+                // テキスト
+                const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                textElement.setAttribute('x', size.width / 2);
+                textElement.setAttribute('y', size.height / 2);
+                textElement.setAttribute('text-anchor', 'middle');
+                textElement.setAttribute('dominant-baseline', 'middle');
+                textElement.setAttribute('font-size', '14');
+                textElement.setAttribute('fill', '#000');
+                textElement.textContent = text;
+
+                // ノードグループに追加
+                nodeGroup.appendChild(shape);
+                nodeGroup.appendChild(textElement);
+
+                // 接続ポイント（上、下、左、右）
+                const connections = ['top', 'right', 'bottom', 'left'];
+                connections.forEach(dir => {
+                    const cp = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    cp.setAttribute('class', 'connection-point');
+                    cp.setAttribute('r', '4');
+                    cp.setAttribute('fill', '#4CAF50');
+                    cp.setAttribute('data-dir', dir);
+                    
+                    let cx, cy;
+                    if (dir === 'top') {
+                        cx = size.width / 2;
+                        cy = 0;
+                    } else if (dir === 'right') {
+                        cx = size.width;
+                        cy = size.height / 2;
+                    } else if (dir === 'bottom') {
+                        cx = size.width / 2;
+                        cy = size.height;
+                    } else { // left
+                        cx = 0;
+                        cy = size.height / 2;
+                    }
+                    
+                    cp.setAttribute('cx', cx);
+                    cp.setAttribute('cy', cy);
+                    nodeGroup.appendChild(cp);
+                });
+
+                // ノードの位置を設定
+                nodeGroup.setAttribute('transform', `translate(${x}, ${y})`);
+
+                // イベントリスナーを追加
+                nodeGroup.addEventListener('mousedown', handleNodeMouseDown);
+                nodeGroup.addEventListener('click', handleNodeClick);
+                
+                canvas.appendChild(nodeGroup);
+
+                // ノードデータを保存
+                const node = {
+                    id: nodeId,
+                    element: nodeGroup,
+                    type: type,
+                    color: color,
+                    text: text,
+                    x: x,
+                    y: y,
+                    width: size.width,
+                    height: size.height,
+                    connections: connections.map(dir => ({
+                        direction: dir,
+                        connectedTo: null,
+                        point: { x: 0, y: 0 } // 後で更新
+                    }))
+                };
+
+                nodes.push(node);
+                nodeText.value = '';
+                updateConnectionPoints();
+            });
+
+            // クリア
+            clearBtn.addEventListener('click', () => {
+                if (confirm('すべてのフローチャートをクリアしますか？')) {
+                    while (canvas.firstChild) {
+                        canvas.removeChild(canvas.firstChild);
+                    }
+                    nodes = [];
+                    arrows = [];
+                    nextNodeId = 1;
+                    clearSelection();
+                    propertiesPanel.style.display = 'none';
+                }
+            });
+
+            // SVGで保存
+            downloadSVGBtn.addEventListener('click', () => {
+                const serializer = new XMLSerializer();
+                let source = serializer.serializeToString(canvas);
+                
+                // SVGのドキュメント全体を構築
+                source = '<?xml version="1.0" standalone="no"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd">' + source;
+                
+                // データURIを作成
+                const uri = 'image/svg+xml;charset=utf-8,' + encodeURIComponent(source);
+                
+                // ダウンロードリンクを作成
+                const link = document.createElement('a');
+                link.download = 'flowchart.svg';
+                link.href = uri;
+                link.click();
+            });
+
+            // PNGで保存
+            downloadPNGBtn.addEventListener('click', () => {
+                const svgData = new XMLSerializer().serializeToString(canvas);
+                const svgBlob = new Blob([svgData], {type: 'image/svg+xml;charset=utf-8'});
+                const svgUrl = URL.createObjectURL(svgBlob);
+                
+                const img = new Image();
+                img.onload = () => {
+                    const canvas2 = document.createElement('canvas');
+                    canvas2.width = canvas.clientWidth;
+                    canvas2.height = canvas.clientHeight;
+                    const ctx = canvas2.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    
+                    const pngUrl = canvas2.toDataURL('image/png');
+                    const link = document.createElement('a');
+                    link.download = 'flowchart.png';
+                    link.href = pngUrl;
+                    link.click();
+                    
+                    URL.revokeObjectURL(svgUrl);
+                };
+                img.src = svgUrl;
+            });
+
+            // JSONでエクスポート
+            exportJsonBtn.addEventListener('click', () => {
+                const data = {
+                    nodes: nodes.map(node => ({
+                        id: node.id,
+                        type: node.type,
+                        color: node.color,
+                        text: node.text,
+                        x: node.x,
+                        y: node.y,
+                        width: node.width,
+                        height: node.height
+                    })),
+                    arrows: arrows.map(arrow => ({
+                        from: arrow.from,
+                        to: arrow.to,
+                        label: arrow.label || ''
+                    }))
+                };
+                
+                const jsonStr = JSON.stringify(data, null, 2);
+                const blob = new Blob([jsonStr], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                
+                const link = document.createElement('a');
+                link.download = 'flowchart.json';
+                link.href = url;
+                link.click();
+                
+                URL.revokeObjectURL(url);
+            });
+
+            // JSONでインポート
+            importJsonBtn.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.json';
+                input.onchange = e => {
+                    const file = e.target.files[0];
+                    if (!file) return;
+                    
+                    const reader = new FileReader();
+                    reader.onload = event => {
+                        try {
+                            const data = JSON.parse(event.target.result);
+                            
+                            // クリアしてから読み込み
+                            clearBtn.click();
+                            
+                            // ノードを再作成
+                            data.nodes.forEach(nodeData => {
+                                const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                                nodeGroup.setAttribute('id', nodeData.id);
+                                nodeGroup.setAttribute('class', 'node');
+                                nodeGroup.setAttribute('data-type', nodeData.type);
+
+                                const size = {
+                                    width: nodeData.width,
+                                    height: nodeData.height
+                                };
+
+                                let shape;
+                                if (nodeData.type === 'start-end') {
+                                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'ellipse');
+                                    shape.setAttribute('cx', size.width / 2);
+                                    shape.setAttribute('cy', size.height / 2);
+                                    shape.setAttribute('rx', size.width / 2);
+                                    shape.setAttribute('ry', size.height / 2);
+                                    shape.setAttribute('fill', nodeData.color);
+                                    shape.setAttribute('stroke', '#333');
+                                    shape.setAttribute('stroke-width', '2');
+                                } else if (nodeData.type === 'process') {
+                                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                                    shape.setAttribute('x', 0);
+                                    shape.setAttribute('y', 0);
+                                    shape.setAttribute('width', size.width);
+                                    shape.setAttribute('height', size.height);
+                                    shape.setAttribute('fill', nodeData.color);
+                                    shape.setAttribute('stroke', '#333');
+                                    shape.setAttribute('stroke-width', '2');
+                                    shape.setAttribute('rx', '5');
+                                    shape.setAttribute('ry', '5');
+                                } else if (nodeData.type === 'decision') {
+                                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                                    const points = [
+                                        `${size.width / 2},0`,
+                                        `${size.width},${size.height / 2}`,
+                                        `${size.width / 2},${size.height}`,
+                                        `0,${size.height / 2}`
+                                    ].join(' ');
+                                    shape.setAttribute('points', points);
+                                    shape.setAttribute('fill', nodeData.color);
+                                    shape.setAttribute('stroke', '#333');
+                                    shape.setAttribute('stroke-width', '2');
+                                } else if (nodeData.type === 'input-output') {
+                                    shape = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                                    const points = [
+                                        `${size.width / 4},0`,
+                                        `${size.width * 3/4},0`,
+                                        `${size.width},${size.height / 2}`,
+                                        `${size.width * 3/4},${size.height}`,
+                                        `${size.width / 4},${size.height}`,
+                                        `0,${size.height / 2}`
+                                    ].join(' ');
+                                    shape.setAttribute('points', points);
+                                    shape.setAttribute('fill', nodeData.color);
+                                    shape.setAttribute('stroke', '#333');
+                                    shape.setAttribute('stroke-width', '2');
+                                }
+
+                                const textElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                                textElement.setAttribute('x', size.width / 2);
+                                textElement.setAttribute('y', size.height / 2);
+                                textElement.setAttribute('text-anchor', 'middle');
+                                textElement.setAttribute('dominant-baseline', 'middle');
+                                textElement.setAttribute('font-size', '14');
+                                textElement.setAttribute('fill', '#000');
+                                textElement.textContent = nodeData.text;
+
+                                nodeGroup.appendChild(shape);
+                                nodeGroup.appendChild(textElement);
+
+                                // 接続ポイント
+                                const connections = ['top', 'right', 'bottom', 'left'];
+                                connections.forEach(dir => {
+                                    const cp = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                                    cp.setAttribute('class', 'connection-point');
+                                    cp.setAttribute('r', '4');
+                                    cp.setAttribute('fill', '#4CAF50');
+                                    cp.setAttribute('data-dir', dir);
+                                    
+                                    let cx, cy;
+                                    if (dir === 'top') {
+                                        cx = size.width / 2;
+                                        cy = 0;
+                                    } else if (dir === 'right') {
+                                        cx = size.width;
+                                        cy = size.height / 2;
+                                    } else if (dir === 'bottom') {
+                                        cx = size.width / 2;
+                                        cy = size.height;
+                                    } else { // left
+                                        cx = 0;
+                                        cy = size.height / 2;
+                                    }
+                                    
+                                    cp.setAttribute('cx', cx);
+                                    cp.setAttribute('cy', cy);
+                                    nodeGroup.appendChild(cp);
+                                });
+
+                                nodeGroup.setAttribute('transform', `translate(${nodeData.x}, ${nodeData.y})`);
+                                nodeGroup.addEventListener('mousedown', handleNodeMouseDown);
+                                nodeGroup.addEventListener('click', handleNodeClick);
+                                
+                                canvas.appendChild(nodeGroup);
+
+                                nodes.push({
+                                    id: nodeData.id,
+                                    element: nodeGroup,
+                                    type: nodeData.type,
+                                    color: nodeData.color,
+                                    text: nodeData.text,
+                                    x: nodeData.x,
+                                    y: nodeData.y,
+                                    width: nodeData.width,
+                                    height: nodeData.height,
+                                    connections: connections.map(dir => ({
+                                        direction: dir,
+                                        connectedTo: null,
+                                        point: { x: 0, y: 0 }
+                                    }))
+                                });
+                            });
+
+                            // 矢印を再作成
+                            data.arrows.forEach(arrowData => {
+                                const fromNode = nodes.find(n => n.id === arrowData.from);
+                                const toNode = nodes.find(n => n.id === arrowData.to);
+                                
+                                if (fromNode && toNode) {
+                                    createArrow(fromNode, toNode, arrowData.label);
+                                }
+                            });
+                            
+                            updateConnectionPoints();
+                            statusBar.textContent = '状態: JSONをインポートしました';
+                            
+                        } catch (error) {
+                            alert('JSONの読み込みに失敗しました: ' + error.message);
+                        }
+                    };
+                    reader.readAsText(file);
+                };
+                input.click();
+            });
+
+            // ノードのマウスダウンイベント
+            function handleNodeMouseDown(e) {
+                e.stopPropagation();
+                
+                if (selectedTool === 'select') {
+                    // 選択状態を更新
+                    clearSelection();
+                    const nodeGroup = e.target.closest('g');
+                    if (nodeGroup) {
+                        selectNode(nodeGroup);
+                        showProperties(nodeGroup);
+                    }
+                    
+                    // ドラッグ開始
+                    draggingNode = nodeGroup;
+                    const rect = nodeGroup.getBoundingClientRect();
+                    const offsetX = e.clientX - rect.left;
+                    const offsetY = e.clientY - rect.top;
+                    
+                    const moveHandler = (moveEvent) => {
+                        const x = moveEvent.clientX - canvas.getBoundingClientRect().left;
+                        const y = moveEvent.clientY - canvas.getBoundingClientRect().top;
+                        
+                        nodeGroup.setAttribute('transform', `translate(${x - offsetX}, ${y - offsetY})`);
+                        
+                        // ノードデータを更新
+                        const node = nodes.find(n => n.element === nodeGroup);
+                        if (node) {
+                            node.x = x - offsetX;
+                            node.y = y - offsetY;
+                        }
+                        
+                        updateConnectionPoints();
+                        updateArrows();
+                    };
+                    
+                    const upHandler = () => {
+                        document.removeEventListener('mousemove', moveHandler);
+                        document.removeEventListener('mouseup', upHandler);
+                        draggingNode = null;
+                    };
+                    
+                    document.addEventListener('mousemove', moveHandler);
+                    document.addEventListener('mouseup', upHandler);
+                    
+                } else if (selectedTool === 'draw' && !drawingArrow) {
+                    // 矢印の始点として使用
+                    const connectionPoint = e.target.closest('.connection-point');
+                    if (connectionPoint) {
+                        drawingArrow = true;
+                        arrowStart = connectionPoint.parentElement;
+                        
+                        currentArrowLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                        currentArrowLine.setAttribute('class', 'arrow');
+                        currentArrowLine.setAttribute('stroke', '#333');
+                        currentArrowLine.setAttribute('stroke-width', '2');
+                        
+                        // 始点の座標を取得
+                        const startRect = arrowStart.getBoundingClientRect();
+                        const startCx = parseFloat(connectionPoint.getAttribute('cx'));
+                        const startCy = parseFloat(connectionPoint.getAttribute('cy'));
+                        const startX = startRect.left + startCx + parseFloat(arrowStart.getAttribute('transform').match(/translate\(([^,]+),([^)]+)\)/)[1]);
+                        const startY = startRect.top + startCy + parseFloat(arrowStart.getAttribute('transform').match(/translate\(([^,]+),([^)]+)\)/)[2]);
+                        
+                        currentArrowLine.setAttribute('x1', startX);
+                        currentArrowLine.setAttribute('y1', startY);
+                        currentArrowLine.setAttribute('x2', startX);
+                        currentArrowLine.setAttribute('y2', startY);
+                        
+                        canvas.appendChild(currentArrowLine);
+                        
+                        // マウスの動きを追跡
+                        const mouseMoveHandler = (e) => {
+                            const rect = canvas.getBoundingClientRect();
+                            const x = e.clientX - rect.left;
+                            const y = e.clientY - rect.top;
+                            
+                            currentArrowLine.setAttribute('x2', x);
+                            currentArrowLine.setAttribute('y2', y);
+                        };
+                        
+                        const mouseUpHandler = (e) => {
+                            document.removeEventListener('mousemove', mouseMoveHandler);
+                            document.removeEventListener('mouseup', mouseUpHandler);
+                            
+                            const target = e.target.closest('g.node');
+                            if (target && target !== arrowStart) {
+                                // 終点の接続ポイントを検索
+                                const connectionPointEnd = e.target.closest('.connection-point');
+                                if (connectionPointEnd && connectionPointEnd.parentElement !== arrowStart) {
+                                    // 矢印を確定
+                                    createArrow(arrowStart, target, '');
+                                    drawingArrow = false;
+                                    currentArrowLine.remove();
+                                    currentArrowLine = null;
+                                    arrowStart = null;
+                                    return;
+                                }
+                            }
+                            
+                            // 矢印をキャンセル
+                            drawingArrow = false;
+                            currentArrowLine.remove();
+                            currentArrowLine = null;
+                            arrowStart = null;
+                        };
+                        
+                        document.addEventListener('mousemove', mouseMoveHandler);
+                        document.addEventListener('mouseup', mouseUpHandler);
+                    }
+                } else if (selectedTool === 'delete') {
+                    const nodeGroup = e.target.closest('g.node');
+                    if (nodeGroup) {
+                        if (confirm('このノードと関連する矢印を削除しますか？')) {
+                            removeNode(nodeGroup);
+                        }
+                    }
+                }
+            }
+
+            // ノードクリックイベント
+            function handleNodeClick(e) {
+                e.stopPropagation();
+                if (selectedTool === 'select') {
+                    const nodeGroup = e.target.closest('g.node');
+                    if (nodeGroup) {
+                        selectNode(nodeGroup);
+                        showProperties(nodeGroup);
+                    }
+                }
+            }
+
+            // ノードを選択
+            function selectNode(nodeGroup) {
+                selectedNode = nodeGroup;
+                
+                // 選択されたノードに枠を表示
+                const existingHighlight = document.querySelector('.selection-highlight');
+                if (existingHighlight) {
+                    existingHighlight.remove();
+                }
+                
+                const rect = nodeGroup.getBoundingClientRect();
+                const highlight = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                highlight.setAttribute('class', 'selection-highlight');
+                highlight.setAttribute('x', rect.left - canvas.getBoundingClientRect().left);
+                highlight.setAttribute('y', rect.top - canvas.getBoundingClientRect().top);
+                highlight.setAttribute('width', rect.width);
+                highlight.setAttribute('height', rect.height);
+                highlight.setAttribute('fill', 'none');
+                highlight.setAttribute('stroke', '#4CAF50');
+                highlight.setAttribute('stroke-width', '2');
+                highlight.setAttribute('stroke-dasharray', '5,5');
+                canvas.appendChild(highlight);
+            }
+
+            // 選択を解除
+            function clearSelection() {
+                selectedNode = null;
+                const highlight = document.querySelector('.selection-highlight');
+                if (highlight) {
+                    highlight.remove();
+                }
+                propertiesPanel.style.display = 'none';
+            }
+
+            // プロパティパネルを表示
+            function showProperties(nodeGroup) {
+                const node = nodes.find(n => n.element === nodeGroup);
+                if (node) {
+                    propertyNameInput.value = node.id;
+                    propertyTextInput.value = node.text;
+                    propertyColorInput.value = node.color;
+                    propertyWidthInput.value = node.width;
+                    propertyHeightInput.value = node.height;
+                    propertiesPanel.style.display = 'block';
+                }
+            }
+
+            // ノードを削除
+            function removeNode(nodeGroup) {
+                const nodeId = nodeGroup.id;
+                
+                // 関連する矢印を削除
+                arrows = arrows.filter(arrow => {
+                    if (arrow.from === nodeId || arrow.to === nodeId) {
+                        const line = document.getElementById(`arrow-${arrow.from}-${arrow.to}`);
+                        if (line) line.remove();
+                        return false;
+                    }
+                    return true;
+                });
+                
+                // ノードを削除
+                nodeGroup.remove();
+                nodes = nodes.filter(n => n.id !== nodeId);
+                
+                clearSelection();
+                updateConnectionPoints();
+            }
+
+            // 矢印を作成
+            function createArrow(fromNode, toNode, label) {
+                // 矢印の始点と終点を計算
+                const fromRect = fromNode.getBoundingClientRect();
+                const toRect = toNode.getBoundingClientRect();
+                
+                // 接続ポイントの中心座標を取得
+                const fromCenter = getCenterOfConnectionPoint(fromNode);
+                const toCenter = getCenterOfConnectionPoint(toNode);
+                
+                // 矢印要素を作成
+                const arrowId = `arrow-${fromNode.id}-${toNode.id}`;
+                const arrowLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                arrowLine.setAttribute('id', arrowId);
+                arrowLine.setAttribute('class', 'arrow');
+                arrowLine.setAttribute('x1', fromCenter.x);
+                arrowLine.setAttribute('y1', fromCenter.y);
+                arrowLine.setAttribute('x2', toCenter.x);
+                arrowLine.setAttribute('y2', toCenter.y);
+                
+                canvas.appendChild(arrowLine);
+                
+                // ラベルを追加（中間地点）
+                if (label) {
+                    const midX = (fromCenter.x + toCenter.x) / 2;
+                    const midY = (fromCenter.y + toCenter.y) / 2;
+                    
+                    const labelElement = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    labelElement.setAttribute('class', 'arrow-label');
+                    labelElement.setAttribute('x', midX);
+                    labelElement.setAttribute('y', midY);
+                    labelElement.setAttribute('text-anchor', 'middle');
+                    labelElement.setAttribute('dominant-baseline', 'middle');
+                    labelElement.textContent = label;
+                    
+                    canvas.appendChild(labelElement);
+                    
+                    // ラベルのIDを保存
+                    labelElement.setAttribute('data-arrow-id', arrowId);
+                }
+                
+                // 矢印データを保存
+                arrows.push({
+                    from: fromNode.id,
+                    to: toNode.id,
+                    label: label,
+                    element: arrowLine
+                });
+                
+                // 接続情報を更新
+                const fromNodeObj = nodes.find(n => n.id === fromNode.id);
+                const toNodeObj = nodes.find(n => n.id === toNode.id);
+                
+                // 接続ポイントを特定して更新
+                const fromConnections = fromNodeObj.connections;
+                const toConnections = toNodeObj.connections;
+                
+                // 最も近い接続ポイントを割り当て
+                const closestFrom = findClosestConnection(fromCenter, fromConnections);
+                const closestTo = findClosestConnection(toCenter, toConnections);
+                
+                if (closestFrom) {
+                    closestFrom.connectedTo = toNode.id;
+                }
+                if (closestTo) {
+                    closestTo.connectedTo = fromNode.id;
+                }
+            }
+
+            // 接続ポイントの中心座標を取得
+            function getCenterOfConnectionPoint(nodeGroup) {
+                const rect = nodeGroup.getBoundingClientRect();
+                const transform = nodeGroup.getAttribute('transform');
+                const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
+                const offsetX = match ? parseFloat(match[1]) : 0;
+                const offsetY = match ? parseFloat(match[2]) : 0;
+                
+                // 接続ポイントを探す
+                const connectionPoint = nodeGroup.querySelector('.connection-point');
+                if (connectionPoint) {
+                    const cx = parseFloat(connectionPoint.getAttribute('cx'));
+                    const cy = parseFloat(connectionPoint.getAttribute('cy'));
+                    return {
+                        x: offsetX + cx,
+                        y: offsetY + cy
+                    };
+                }
+                
+                // 代わりにノードの中心を返す
+                const width = parseFloat(nodeGroup.getAttribute('width')) || 100;
+                const height = parseFloat(nodeGroup.getAttribute('height')) || 50;
+                return {
+                    x: offsetX + width / 2,
+                    y: offsetY + height / 2
+                };
+            }
+
+            // 最も近い接続ポイントを見つける
+            function findClosestConnection(point, connections) {
+                let closest = null;
+                let minDistance = Infinity;
+                
+                connections.forEach(conn => {
+                    const connRect = conn.point;
+                    const distance = Math.sqrt(
+                        Math.pow(point.x - connRect.x, 2) + 
+                        Math.pow(point.y - connRect.y, 2)
+                    );
+                    
+                    if (distance < minDistance) {
+                        minDistance = distance;
+                        closest = conn;
+                    }
+                });
+                
+                return closest;
+            }
+
+            // 矢印を更新
+            function updateArrows() {
+                arrows.forEach(arrow => {
+                    const fromNode = nodes.find(n => n.id === arrow.from);
+                    const toNode = nodes.find(n => n.id === arrow.to);
+                    
+                    if (fromNode && toNode) {
+                        const fromCenter = getCenterOfConnectionPoint(fromNode.element);
+                        const toCenter = getCenterOfConnectionPoint(toNode.element);
+                        
+                        const line = document.getElementById(`arrow-${arrow.from}-${arrow.to}`);
+                        if (line) {
+                            line.setAttribute('x1', fromCenter.x);
+                            line.setAttribute('y1', fromCenter.y);
+                            line.setAttribute('x2', toCenter.x);
+                            line.setAttribute('y2', toCenter.y);
+                        }
+                        
+                        // ラベルの位置を更新
+                        const labelElement = document.querySelector(`text[data-arrow-id="arrow-${arrow.from}-${arrow.to}"]`);
+                        if (labelElement) {
+                            const midX = (fromCenter.x + toCenter.x) / 2;
+                            const midY = (fromCenter.y + toCenter.y) / 2;
+                            labelElement.setAttribute('x', midX);
+                            labelElement.setAttribute('y', midY);
+                        }
+                    }
+                });
+            }
+
+            // 接続ポイントを更新
+            function updateConnectionPoints() {
+                nodes.forEach(node => {
+                    const rect = node.element.getBoundingClientRect();
+                    const transform = node.element.getAttribute('transform');
+                    const match = transform.match(/translate\(([^,]+),([^)]+)\)/);
+                    const offsetX = match ? parseFloat(match[1]) : 0;
+                    const offsetY = match ? parseFloat(match[2]) : 0;
+                    
+                    // 接続ポイントの位置を更新
+                    const connectionPoints = node.element.querySelectorAll('.connection-point');
+                    connectionPoints.forEach(cp => {
+                        const dir = cp.getAttribute('data-dir');
+                        let cx, cy;
+                        
+                        if (dir === 'top') {
+                            cx = node.width / 2;
+                            cy = 0;
+                        } else if (dir === 'right') {
+                            cx = node.width;
+                            cy = node.height / 2;
+                        } else if (dir === 'bottom') {
+                            cx = node.width / 2;
+                            cy = node.height;
+                        } else { // left
+                            cx = 0;
+                            cy = node.height / 2;
+                        }
+                        
+                        cp.setAttribute('cx', cx);
+                        cp.setAttribute('cy', cy);
+                        
+                        // ポイントの実際の座標を保存
+                        node.connections.find(c => c.direction === dir).point = {
+                            x: offsetX + cx,
+                            y: offsetY + cy
+                        };
+                    });
+                });
+            }
+
+            // 変更を適用
+            applyChangesBtn.addEventListener('click', () => {
+                if (selectedNode) {
+                    const node = nodes.find(n => n.element === selectedNode);
+                    if (node) {
+                        node.text = propertyTextInput.value;
+                        node.color = propertyColorInput.value;
+                        node.width = parseInt(propertyWidthInput.value) || node.width;
+                        node.height = parseInt(propertyHeightInput.value) || node.height;
+                        
+                        // ノードの内容を更新
+                        const shape = selectedNode.querySelector('rect, ellipse, polygon');
+                        const textElement = selectedNode.querySelector('text');
+                        
+                        if (shape) {
+                            shape.setAttribute('fill', node.color);
+                            shape.setAttribute('width', node.width);
+                            shape.setAttribute('height', node.height);
+                            
+                            if (shape.tagName === 'ellipse') {
+                                shape.setAttribute('rx', node.width / 2);
+                                shape.setAttribute('ry', node.height / 2);
+                            } else if (shape.tagName === 'rect') {
+                                shape.setAttribute('rx', '5');
+                                shape.setAttribute('ry', '5');
+                            }
+                        }
+                        
+                        if (textElement) {
+                            textElement.textContent = node.text;
+                            textElement.setAttribute('x', node.width / 2);
+                            textElement.setAttribute('y', node.height / 2);
+                        }
+                        
+                        // 接続ポイントの位置を再計算
+                        updateConnectionPoints();
+                        updateArrows();
+                        
+                        statusBar.textContent = '状態: プロパティを更新しました';
+                    }
+                }
+            });
+
+            // 削除ボタン
+            deleteSelectedBtn.addEventListener('click', () => {
+                if (selectedNode && confirm('このノードと関連する矢印を削除しますか？')) {
+                    removeNode(selectedNode);
+                }
+            });
+
+            // ノードのテキスト編集機能
+            canvas.addEventListener('dblclick', (e) => {
+                if (selectedTool === 'select') {
+                    const textElement = e.target.closest('text');
+                    if (textElement) {
+                        const nodeGroup = textElement.parentElement;
+                        const node = nodes.find(n => n.element === nodeGroup);
+                        if (node) {
+                            const oldText = textElement.textContent;
+                            const newText = prompt('テキストを編集:', oldText);
+                            if (newText !== null) {
+                                textElement.textContent = newText;
+                                node.text = newText;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 矢印にラベルを付ける機能
+            canvas.addEventListener('dblclick', (e) => {
+                if (selectedTool === 'select') {
+                    const arrowLabel = e.target.closest('.arrow-label');
+                    if (arrowLabel) {
+                        const arrowId = arrowLabel.getAttribute('data-arrow-id');
+                        const parts = arrowId.split('-');
+                        const from = parts[1];
+                        const to = parts[2];
+                        const arrow = arrows.find(a => a.from === from && a.to === to);
+                        if (arrow) {
+                            const oldLabel = arrowLabel.textContent;
+                            const newLabel = prompt('ラベルを入力:', oldLabel);
+                            if (newLabel !== null) {
+                                arrowLabel.textContent = newLabel;
+                                arrow.label = newLabel;
+                            }
+                        }
+                    }
+                }
+            });
+
+            // 初期化
+            updateConnectionPoints();
+        });
+    </script>
+</body>
+</html>
+```
