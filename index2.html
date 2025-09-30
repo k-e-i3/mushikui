@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
-    <title>テレプロンプター型暗記支援アプリ (v18.1 - 完全版)</title>
+    <title>テレプロンプター型暗記支援アプリ (v18.2 - 最終修正版)</title>
     <style>
         :root {
             --bg-color: #ededed;
@@ -80,7 +80,6 @@
         .char.revealed { color: var(--text-color); border-bottom-color: transparent !important; }
         .placeholder-dot { color: #8A9A5B; opacity: 0.7; }
 
-        /* テキスト編集モーダルのスタイル */
         #editor-modal {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background-color: rgba(0,0,0,0.6); z-index: 1000;
@@ -178,7 +177,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 maskRateValue: document.getElementById('mask-rate-value'),
                 progressInfo: document.getElementById('progress-info'),
                 wordInfo: document.getElementById('word-info'),
-                // 編集モーダル用の要素を追加
                 editTextBtn: document.getElementById('edit-text-btn'),
                 editorModal: document.getElementById('editor-modal'),
                 textEditor: document.getElementById('text-editor'),
@@ -190,6 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 voiceLoadRetries: 0, textFiles: [],
                 originalText: '下の「テキスト選択」から学習したい文章を選んでください。',
                 fontSize: 24, highlightSpeed: 1500, maskRate: 0.3,
+                isAudioUnlocked: false, // 音声再生が許可されたかのフラグ
             };
             this.dragState = { isDragging: false, isTap: true, startX: 0, startY: 0, startTranslateY: 0 };
             this.githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
@@ -301,7 +300,6 @@ document.addEventListener('DOMContentLoaded', () => {
             window.addEventListener('mouseup', (e) => this.onDragEnd(e));
             window.addEventListener('touchend', (e) => this.onDragEnd(e));
 
-            // 編集モーダルのイベント
             this.els.editTextBtn.addEventListener('click', () => this.openEditor());
             this.els.saveTextBtn.addEventListener('click', () => this.saveEditedText());
             this.els.cancelEditBtn.addEventListener('click', () => this.closeEditor());
@@ -437,15 +435,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
         play() {
             if (this.state.words.length === 0) return;
-
-            // Androidでの音声再生安定化のための修正
-            if (this.els.speechToggle.checked && 'speechSynthesis' in window) {
-                speechSynthesis.cancel();
-                const dummyUtterance = new SpeechSynthesisUtterance(' ');
-                dummyUtterance.volume = 0;
-                speechSynthesis.speak(dummyUtterance);
-            }
-
             this.state.isPlaying = true;
             this.els.playPauseBtn.textContent = '一時停止';
             this.tick();
@@ -464,7 +453,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.state.isPlaying) {
                 this.pause();
             } else {
-                this.play();
+                // ▼▼▼ 音声再生の許可を得るための新しいロジック ▼▼▼
+                if (this.els.speechToggle.checked && !this.state.isAudioUnlocked) {
+                    // 最初の再生時のみ、ユーザーのタップをきっかけに無音発話を実行
+                    speechSynthesis.cancel();
+                    const dummyUtterance = new SpeechSynthesisUtterance(' ');
+                    dummyUtterance.volume = 0;
+                    dummyUtterance.onend = () => {
+                        // 無音発話が完了したら、isAudioUnlockedフラグを立て、本当の再生を開始
+                        this.state.isAudioUnlocked = true;
+                        if (!this.state.isPlaying) { // pause()が呼ばれていなければ再生
+                           this.play();
+                        }
+                    };
+                    speechSynthesis.speak(dummyUtterance);
+                } else {
+                    // 音声が既に許可されている、または読み上げOFFの場合は、すぐに再生を開始
+                    this.play();
+                }
             }
         }
 
@@ -530,6 +536,7 @@ document.addEventListener('DOMContentLoaded', () => {
         reset() {
             this.pause();
             this.state.currentWordIndex = -1;
+            this.state.isAudioUnlocked = false; // リセット時に音声許可フラグも戻す
             this.els.textContent.style.transition = 'none';
             this.els.textContent.style.transform = 'translateY(0px)';
             setTimeout(() => {
