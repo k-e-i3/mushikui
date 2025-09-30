@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
-    <title>テレプロンプター型暗記支援アプリ (v21 - 最終確定版)</title>
+    <title>テレプロンプター型暗記支援アプリ (v22 - 最終修正版)</title>
     <style>
         :root {
             --bg-color: #ededed;
@@ -203,9 +203,10 @@ document.addEventListener('DOMContentLoaded', () => {
             this.loadTextList();
         }
         
-        // ▼▼▼ 最初のツール（技術士試験用）のシンプルな音声初期化方式に統一 ▼▼▼
+        // ▼▼▼ 最初のツール（技術士試験用）のシンプルな音声初期化方式に変更 ▼▼▼
         initSpeech() {
             if ('speechSynthesis' in window) {
+                // onvoiceschanged イベントで音声リストを更新
                 speechSynthesis.onvoiceschanged = () => {
                     this.state.voices = speechSynthesis.getVoices().filter(voice => voice.lang === 'ja-JP');
                     this.updateVoiceListUI();
@@ -214,29 +215,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 this.state.voices = speechSynthesis.getVoices().filter(voice => voice.lang === 'ja-JP');
                 this.updateVoiceListUI();
             } else {
+                // 読み上げ機能がなければUIを非表示
                 const speechControl = this.els.speechToggle.parentElement;
                 if(speechControl) speechControl.style.display = 'none';
             }
         }
         
-        // ▼▼▼ 音声リストのUI更新処理を分離 ▼▼▼
+        // ▼▼▼ 音声リストのUI更新処理を修正。「無効化」する処理を完全に撤廃 ▼▼▼
         updateVoiceListUI() {
+            // チェックボックスと音声選択は常に有効なままにする
+            this.els.voiceSelect.disabled = false;
+            this.els.speechToggle.disabled = false;
+            this.els.speechToggle.parentElement.style.opacity = 1;
+
+            this.els.voiceSelect.innerHTML = ''; // いったんクリア
             if (this.state.voices.length > 0) {
-                this.els.voiceSelect.innerHTML = '';
+                // 日本語音声が見つかった場合、リストに追加
                 this.state.voices.forEach(voice => {
                     const option = document.createElement('option');
                     option.textContent = `${voice.name}`;
                     option.setAttribute('data-name', voice.name);
                     this.els.voiceSelect.appendChild(option);
                 });
-                this.els.voiceSelect.disabled = false;
-                this.els.speechToggle.disabled = false;
-                this.els.speechToggle.parentElement.style.opacity = 1;
             } else {
-                this.els.voiceSelect.innerHTML = '<option>日本語音声なし</option>';
-                this.els.voiceSelect.disabled = true;
-                this.els.speechToggle.disabled = true;
-                this.els.speechToggle.parentElement.style.opacity = 0.5;
+                // 見つからなくても、空の選択肢を表示するだけにする
+                const option = document.createElement('option');
+                option.textContent = '音声読込中...';
+                this.els.voiceSelect.appendChild(option);
             }
         }
 
@@ -445,30 +450,22 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
-        // ▼▼▼ 動作実績のある、確実な再生ロジックに変更 ▼▼▼
         togglePlay() {
             if (this.state.isPlaying) {
                 this.pause();
             } else {
-                // 読み上げがONで、まだ音声利用の許可が取れていない場合
                 if (this.els.speechToggle.checked && !this.state.isAudioUnlocked) {
-                    // 最初の再生時のみ、ユーザーのタップをきっかけに無音発話を実行
                     speechSynthesis.cancel();
                     const dummyUtterance = new SpeechSynthesisUtterance(' ');
                     dummyUtterance.volume = 0;
-                    
-                    // 無音発話が完了したら、isAudioUnlockedフラグを立て、本当の再生を開始
                     dummyUtterance.onend = () => {
                         this.state.isAudioUnlocked = true;
-                        // pause()が呼ばれていなければ再生
                         if (!this.state.isPlaying) { 
                            this.play();
                         }
                     };
-                    
                     speechSynthesis.speak(dummyUtterance);
                 } else {
-                    // 音声が既に許可されている、または読み上げOFFの場合は、すぐに再生を開始
                     this.play();
                 }
             }
@@ -486,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             this.highlightNextWord();
             if (this.els.speechToggle.checked && this.state.words.length > 0) {
-                this.speakCurrentWord(); // speakCurrentWordを呼び出すように変更
+                this.speakCurrentWord();
             }
             if (this.state.currentWordIndex < this.state.words.length - 1) {
                 this.state.timer = setTimeout(() => this.tick(), this.state.highlightSpeed);
@@ -496,7 +493,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        // ▼▼▼ 最初のツールから読み上げ関数を移植 ▼▼▼
         speakCurrentWord() {
             if (!('speechSynthesis' in window) || this.state.currentWordIndex < 0) return;
             
@@ -505,16 +501,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 const word = currentWordEl.textContent;
                 const utterance = new SpeechSynthesisUtterance(word);
                 
-                // 選択された声があれば設定
                 const selectedVoiceName = this.els.voiceSelect.selectedOptions[0]?.getAttribute('data-name');
                 if (selectedVoiceName) {
                     const selectedVoice = this.state.voices.find(voice => voice.name === selectedVoiceName);
                     if (selectedVoice) { utterance.voice = selectedVoice; }
                 }
                 utterance.lang = 'ja-JP';
-                // 読み上げ速度はここでは設定せず、ブラウザのデフォルトに任せる方が安定する
-                // utterance.rate = 1.0; 
-                
                 speechSynthesis.speak(utterance);
             }
         }
