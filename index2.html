@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
-    <title>テレプロンプター型暗記支援アプリ (v18.2 - 最終修正版)</title>
+    <title>テレプロンプター型暗記支援アプリ (v20 - 最終確定版)</title>
     <style>
         :root {
             --bg-color: #ededed;
@@ -195,15 +195,48 @@ document.addEventListener('DOMContentLoaded', () => {
 
             this.loadSettings();
             this.init();
-            this.initSpeech();
         }
 
         init() {
+            this.initSpeechAndAudioUnlock(); // 初期化処理をまとめる
             this.bindEvents();
             this.updateUIFromState();
             this.loadTextList();
         }
         
+        // ▼▼▼ 音声の初期化とアンロック処理をここに集約 ▼▼▼
+        initSpeechAndAudioUnlock() {
+            if (!('speechSynthesis' in window)) {
+                const speechControl = this.els.speechToggle.parentElement;
+                if(speechControl) speechControl.style.display = 'none';
+                return;
+            }
+
+            const populate = () => this.populateVoiceList();
+            speechSynthesis.onvoiceschanged = populate;
+            this.populateVoiceList();
+
+            const unlockAudio = () => {
+                if (this.state.isAudioUnlocked) return;
+                
+                speechSynthesis.cancel();
+                const dummyUtterance = new SpeechSynthesisUtterance(' ');
+                dummyUtterance.volume = 0;
+                speechSynthesis.speak(dummyUtterance);
+                
+                this.state.isAudioUnlocked = true;
+                console.log('Audio unlocked by user interaction.');
+                // 一度実行したら不要なので削除
+                document.body.removeEventListener('touchstart', unlockAudio);
+                document.body.removeEventListener('click', unlockAudio);
+            };
+
+            // 最初のユーザー操作で音声をアンロック
+            document.body.addEventListener('touchstart', unlockAudio, { once: true });
+            document.body.addEventListener('click', unlockAudio, { once: true });
+        }
+
+
         async loadTextList() {
             const url = `https://${this.githubInfo.username}.github.io/${this.githubInfo.repo}/index.json?t=${new Date().getTime()}`;
             try {
@@ -247,17 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
         
-        initSpeech() {
-            if ('speechSynthesis' in window) {
-                const populate = () => this.populateVoiceList();
-                speechSynthesis.onvoiceschanged = populate;
-                this.populateVoiceList();
-            } else {
-                const speechControl = this.els.speechToggle.parentElement;
-                if(speechControl) speechControl.style.display = 'none';
-            }
-        }
-        
         populateVoiceList() {
             const voices = speechSynthesis.getVoices();
             if (voices.length === 0 && this.state.voiceLoadRetries < 15) {
@@ -267,6 +289,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             this.state.voices = voices.filter(voice => voice.lang === 'ja-JP');
             this.els.voiceSelect.innerHTML = '';
+            
             if (this.state.voices.length > 0) {
                 this.state.voices.forEach(voice => {
                     const option = document.createElement('option');
@@ -274,12 +297,18 @@ document.addEventListener('DOMContentLoaded', () => {
                     option.setAttribute('data-name', voice.name);
                     this.els.voiceSelect.appendChild(option);
                 });
-                this.els.voiceSelect.disabled = false; this.els.speechToggle.disabled = false;
+                // ▼▼▼ 音声リストが取得できたらUIを有効化 ▼▼▼
+                this.els.voiceSelect.disabled = false;
+                this.els.speechToggle.disabled = false;
+                this.els.speechToggle.parentElement.style.opacity = 1;
             } else {
                 const option = document.createElement('option');
                 option.textContent = '日本語音声なし';
                 this.els.voiceSelect.appendChild(option);
-                this.els.voiceSelect.disabled = true; this.els.speechToggle.disabled = true;
+                // ▼▼▼ 音声がなければUIを無効化 ▼▼▼
+                this.els.voiceSelect.disabled = true;
+                this.els.speechToggle.disabled = true;
+                this.els.speechToggle.parentElement.style.opacity = 0.5; // 見た目もグレーアウト
             }
         }
 
@@ -434,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         play() {
-            if (this.state.words.length === 0) return;
+            if (this.state.words.length === 0 || this.state.isPlaying) return;
             this.state.isPlaying = true;
             this.els.playPauseBtn.textContent = '一時停止';
             this.tick();
@@ -453,24 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (this.state.isPlaying) {
                 this.pause();
             } else {
-                // ▼▼▼ 音声再生の許可を得るための新しいロジック ▼▼▼
-                if (this.els.speechToggle.checked && !this.state.isAudioUnlocked) {
-                    // 最初の再生時のみ、ユーザーのタップをきっかけに無音発話を実行
-                    speechSynthesis.cancel();
-                    const dummyUtterance = new SpeechSynthesisUtterance(' ');
-                    dummyUtterance.volume = 0;
-                    dummyUtterance.onend = () => {
-                        // 無音発話が完了したら、isAudioUnlockedフラグを立て、本当の再生を開始
-                        this.state.isAudioUnlocked = true;
-                        if (!this.state.isPlaying) { // pause()が呼ばれていなければ再生
-                           this.play();
-                        }
-                    };
-                    speechSynthesis.speak(dummyUtterance);
-                } else {
-                    // 音声が既に許可されている、または読み上げOFFの場合は、すぐに再生を開始
-                    this.play();
-                }
+                this.play();
             }
         }
 
@@ -536,7 +548,6 @@ document.addEventListener('DOMContentLoaded', () => {
         reset() {
             this.pause();
             this.state.currentWordIndex = -1;
-            this.state.isAudioUnlocked = false; // リセット時に音声許可フラグも戻す
             this.els.textContent.style.transition = 'none';
             this.els.textContent.style.transform = 'translateY(0px)';
             setTimeout(() => {
