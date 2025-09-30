@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex">
-    <title>テレプロンプター型暗記支援アプリ (v20 - 最終確定版)</title>
+    <title>テレプロンプター型暗記支援アプリ (v21 - 最終確定版)</title>
     <style>
         :root {
             --bg-color: #ededed;
@@ -185,10 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
             };
             this.state = {
                 isPlaying: false, currentWordIndex: -1, words: [], voices: [], timer: null,
-                voiceLoadRetries: 0, textFiles: [],
+                isAudioUnlocked: false, // 音声再生が許可されたかのフラグ
                 originalText: '下の「テキスト選択」から学習したい文章を選んでください。',
                 fontSize: 24, highlightSpeed: 1500, maskRate: 0.3,
-                isAudioUnlocked: false, // 音声再生が許可されたかのフラグ
             };
             this.dragState = { isDragging: false, isTap: true, startX: 0, startY: 0, startTranslateY: 0 };
             this.githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
@@ -198,44 +197,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         init() {
-            this.initSpeechAndAudioUnlock(); // 初期化処理をまとめる
+            this.initSpeech();
             this.bindEvents();
             this.updateUIFromState();
             this.loadTextList();
         }
         
-        // ▼▼▼ 音声の初期化とアンロック処理をここに集約 ▼▼▼
-        initSpeechAndAudioUnlock() {
-            if (!('speechSynthesis' in window)) {
+        // ▼▼▼ 最初のツール（技術士試験用）のシンプルな音声初期化方式に統一 ▼▼▼
+        initSpeech() {
+            if ('speechSynthesis' in window) {
+                speechSynthesis.onvoiceschanged = () => {
+                    this.state.voices = speechSynthesis.getVoices().filter(voice => voice.lang === 'ja-JP');
+                    this.updateVoiceListUI();
+                };
+                // 初回読み込みも試みる
+                this.state.voices = speechSynthesis.getVoices().filter(voice => voice.lang === 'ja-JP');
+                this.updateVoiceListUI();
+            } else {
                 const speechControl = this.els.speechToggle.parentElement;
                 if(speechControl) speechControl.style.display = 'none';
-                return;
             }
-
-            const populate = () => this.populateVoiceList();
-            speechSynthesis.onvoiceschanged = populate;
-            this.populateVoiceList();
-
-            const unlockAudio = () => {
-                if (this.state.isAudioUnlocked) return;
-                
-                speechSynthesis.cancel();
-                const dummyUtterance = new SpeechSynthesisUtterance(' ');
-                dummyUtterance.volume = 0;
-                speechSynthesis.speak(dummyUtterance);
-                
-                this.state.isAudioUnlocked = true;
-                console.log('Audio unlocked by user interaction.');
-                // 一度実行したら不要なので削除
-                document.body.removeEventListener('touchstart', unlockAudio);
-                document.body.removeEventListener('click', unlockAudio);
-            };
-
-            // 最初のユーザー操作で音声をアンロック
-            document.body.addEventListener('touchstart', unlockAudio, { once: true });
-            document.body.addEventListener('click', unlockAudio, { once: true });
         }
-
+        
+        // ▼▼▼ 音声リストのUI更新処理を分離 ▼▼▼
+        updateVoiceListUI() {
+            if (this.state.voices.length > 0) {
+                this.els.voiceSelect.innerHTML = '';
+                this.state.voices.forEach(voice => {
+                    const option = document.createElement('option');
+                    option.textContent = `${voice.name}`;
+                    option.setAttribute('data-name', voice.name);
+                    this.els.voiceSelect.appendChild(option);
+                });
+                this.els.voiceSelect.disabled = false;
+                this.els.speechToggle.disabled = false;
+                this.els.speechToggle.parentElement.style.opacity = 1;
+            } else {
+                this.els.voiceSelect.innerHTML = '<option>日本語音声なし</option>';
+                this.els.voiceSelect.disabled = true;
+                this.els.speechToggle.disabled = true;
+                this.els.speechToggle.parentElement.style.opacity = 0.5;
+            }
+        }
 
         async loadTextList() {
             const url = `https://${this.githubInfo.username}.github.io/${this.githubInfo.repo}/index.json?t=${new Date().getTime()}`;
@@ -245,23 +248,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const fileList = await response.json();
                 this.state.textFiles = fileList;
-
                 this.els.textSelect.innerHTML = '<option value="" disabled>--- GitHubから選択 ---</option>';
-                this.state.textFiles.forEach(fileName => {
+                fileList.forEach(fileName => {
                     const option = document.createElement('option');
                     option.value = fileName;
                     option.textContent = fileName.replace('.txt', '');
                     this.els.textSelect.appendChild(option);
                 });
-
-                if (this.state.textFiles.length > 0) {
+                if (fileList.length > 0) {
                     this.els.textSelect.selectedIndex = 1;
-                    this.loadTextContent(this.state.textFiles[0]);
+                    this.loadTextContent(fileList[0]);
                 } else {
                     this.renderText();
                 }
             } catch (error) {
-                this.els.textContent.innerHTML = `<p class="loading-message">${error.message}<br>GitHub上でindex.jsonが正しく設置されているかご確認ください。</p>`;
+                this.els.textContent.innerHTML = `<p class="loading-message">${error.message}</p>`;
             }
         }
 
@@ -279,38 +280,6 @@ document.addEventListener('DOMContentLoaded', () => {
                  this.els.textContent.innerHTML = `<p class="loading-message">${error.message}</p>`;
             }
         }
-        
-        populateVoiceList() {
-            const voices = speechSynthesis.getVoices();
-            if (voices.length === 0 && this.state.voiceLoadRetries < 15) {
-                this.state.voiceLoadRetries++;
-                setTimeout(() => this.populateVoiceList(), 200);
-                return;
-            }
-            this.state.voices = voices.filter(voice => voice.lang === 'ja-JP');
-            this.els.voiceSelect.innerHTML = '';
-            
-            if (this.state.voices.length > 0) {
-                this.state.voices.forEach(voice => {
-                    const option = document.createElement('option');
-                    option.textContent = `${voice.name}`;
-                    option.setAttribute('data-name', voice.name);
-                    this.els.voiceSelect.appendChild(option);
-                });
-                // ▼▼▼ 音声リストが取得できたらUIを有効化 ▼▼▼
-                this.els.voiceSelect.disabled = false;
-                this.els.speechToggle.disabled = false;
-                this.els.speechToggle.parentElement.style.opacity = 1;
-            } else {
-                const option = document.createElement('option');
-                option.textContent = '日本語音声なし';
-                this.els.voiceSelect.appendChild(option);
-                // ▼▼▼ 音声がなければUIを無効化 ▼▼▼
-                this.els.voiceSelect.disabled = true;
-                this.els.speechToggle.disabled = true;
-                this.els.speechToggle.parentElement.style.opacity = 0.5; // 見た目もグレーアウト
-            }
-        }
 
         bindEvents() {
             this.els.playPauseBtn.addEventListener('click', () => this.togglePlay());
@@ -321,14 +290,12 @@ document.addEventListener('DOMContentLoaded', () => {
             this.els.maskRateSlider.addEventListener('input', () => this.updateSettings(true));
             window.addEventListener('resize', () => this.handleResize());
             document.addEventListener('keydown', (e) => this.handleKeydown(e));
-            
             this.els.textContainer.addEventListener('mousedown', (e) => this.onDragStart(e));
             this.els.textContainer.addEventListener('touchstart', (e) => this.onDragStart(e), { passive: false });
             window.addEventListener('mousemove', (e) => this.onDragMove(e));
             window.addEventListener('touchmove', (e) => this.onDragMove(e), { passive: false });
             window.addEventListener('mouseup', (e) => this.onDragEnd(e));
             window.addEventListener('touchend', (e) => this.onDragEnd(e));
-
             this.els.editTextBtn.addEventListener('click', () => this.openEditor());
             this.els.saveTextBtn.addEventListener('click', () => this.saveEditedText());
             this.els.cancelEditBtn.addEventListener('click', () => this.closeEditor());
@@ -478,11 +445,32 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // ▼▼▼ 動作実績のある、確実な再生ロジックに変更 ▼▼▼
         togglePlay() {
             if (this.state.isPlaying) {
                 this.pause();
             } else {
-                this.play();
+                // 読み上げがONで、まだ音声利用の許可が取れていない場合
+                if (this.els.speechToggle.checked && !this.state.isAudioUnlocked) {
+                    // 最初の再生時のみ、ユーザーのタップをきっかけに無音発話を実行
+                    speechSynthesis.cancel();
+                    const dummyUtterance = new SpeechSynthesisUtterance(' ');
+                    dummyUtterance.volume = 0;
+                    
+                    // 無音発話が完了したら、isAudioUnlockedフラグを立て、本当の再生を開始
+                    dummyUtterance.onend = () => {
+                        this.state.isAudioUnlocked = true;
+                        // pause()が呼ばれていなければ再生
+                        if (!this.state.isPlaying) { 
+                           this.play();
+                        }
+                    };
+                    
+                    speechSynthesis.speak(dummyUtterance);
+                } else {
+                    // 音声が既に許可されている、または読み上げOFFの場合は、すぐに再生を開始
+                    this.play();
+                }
             }
         }
 
@@ -497,24 +485,37 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
             this.highlightNextWord();
-            if (this.els.speechToggle.checked && this.state.words.length > 0 && 'speechSynthesis' in window) {
-                const currentWordEl = this.state.words[this.state.currentWordIndex];
-                if (currentWordEl) {
-                    const utterance = new SpeechSynthesisUtterance(currentWordEl.textContent);
-                    const selectedVoiceName = this.els.voiceSelect.selectedOptions[0]?.getAttribute('data-name');
-                    if (selectedVoiceName) {
-                        const selectedVoice = this.state.voices.find(voice => voice.name === selectedVoiceName);
-                        if (selectedVoice) { utterance.voice = selectedVoice; }
-                    }
-                    utterance.lang = 'ja-JP';
-                    speechSynthesis.speak(utterance);
-                }
+            if (this.els.speechToggle.checked && this.state.words.length > 0) {
+                this.speakCurrentWord(); // speakCurrentWordを呼び出すように変更
             }
             if (this.state.currentWordIndex < this.state.words.length - 1) {
                 this.state.timer = setTimeout(() => this.tick(), this.state.highlightSpeed);
             } else {
                 this.pause();
                 this.revealAllWords();
+            }
+        }
+        
+        // ▼▼▼ 最初のツールから読み上げ関数を移植 ▼▼▼
+        speakCurrentWord() {
+            if (!('speechSynthesis' in window) || this.state.currentWordIndex < 0) return;
+            
+            const currentWordEl = this.state.words[this.state.currentWordIndex];
+            if (currentWordEl) {
+                const word = currentWordEl.textContent;
+                const utterance = new SpeechSynthesisUtterance(word);
+                
+                // 選択された声があれば設定
+                const selectedVoiceName = this.els.voiceSelect.selectedOptions[0]?.getAttribute('data-name');
+                if (selectedVoiceName) {
+                    const selectedVoice = this.state.voices.find(voice => voice.name === selectedVoiceName);
+                    if (selectedVoice) { utterance.voice = selectedVoice; }
+                }
+                utterance.lang = 'ja-JP';
+                // 読み上げ速度はここでは設定せず、ブラウザのデフォルトに任せる方が安定する
+                // utterance.rate = 1.0; 
+                
+                speechSynthesis.speak(utterance);
             }
         }
 
