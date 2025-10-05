@@ -192,6 +192,11 @@ document.addEventListener('DOMContentLoaded', () => {
             this.dragState = { isDragging: false, isTap: true, startX: 0, startY: 0, startTranslateY: 0 };
             this.githubInfo = { username: 'k-e-i3', repo: 'mushikui' };
 
+            // Audio keep-alive (for background playback attempts)
+            this.audioContext = null;
+            this.keepAliveSource = null;
+            this.keepAliveGain = null;
+
             this.loadSettings();
             this.init();
         }
@@ -242,6 +247,57 @@ document.addEventListener('DOMContentLoaded', () => {
                 const option = document.createElement('option');
                 option.textContent = '音声読込中...';
                 this.els.voiceSelect.appendChild(option);
+            }
+        }
+
+        // --- 新機能: AudioContext のサイレントループを使ってバックスグラウンド再生を維持しようとする試み ---
+        // 注意: ブラウザの制限により動作が保証されるわけではありません。詳しくは後述。
+        createKeepAliveAudio() {
+            try {
+                if (!this.audioContext) {
+                    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+                    if (!AudioCtx) return;
+                    this.audioContext = new AudioCtx();
+                }
+
+                // すでにソースがあるなら何もしない
+                if (this.keepAliveSource) return;
+
+                // 無音バッファを作成してループ再生する (音が鳴らないようにゲインを0に)
+                const sampleRate = this.audioContext.sampleRate;
+                const frameCount = sampleRate; // 1秒の無音
+                const buffer = this.audioContext.createBuffer(1, frameCount, sampleRate);
+                // デフォルトで0で初期化されているため無音になる
+                const source = this.audioContext.createBufferSource();
+                source.buffer = buffer;
+                source.loop = true;
+
+                const gain = this.audioContext.createGain();
+                gain.gain.value = 0; // 完全無音
+
+                source.connect(gain).connect(this.audioContext.destination);
+                source.start();
+                this.keepAliveSource = source;
+                this.keepAliveGain = gain;
+            } catch (err) {
+                console.warn('Keep-alive audio 初期化エラー', err);
+            }
+        }
+
+        stopKeepAliveAudio() {
+            try {
+                if (this.keepAliveSource) {
+                    try { this.keepAliveSource.stop(); } catch(e) {}
+                    this.keepAliveSource.disconnect();
+                    this.keepAliveSource = null;
+                }
+                if (this.keepAliveGain) {
+                    try { this.keepAliveGain.disconnect(); } catch(e) {}
+                    this.keepAliveGain = null;
+                }
+                // AudioContextは残しておく（再利用可能）
+            } catch (err) {
+                console.warn('Keep-alive audio 停止エラー', err);
             }
         }
 
@@ -304,6 +360,20 @@ document.addEventListener('DOMContentLoaded', () => {
             this.els.editTextBtn.addEventListener('click', () => this.openEditor());
             this.els.saveTextBtn.addEventListener('click', () => this.saveEditedText());
             this.els.cancelEditBtn.addEventListener('click', () => this.closeEditor());
+
+            // ユーザーの明確なジェスチャーでAudioContextをresumeする（多くのブラウザはユーザー操作必須）
+            const resumeAudioOnUserGesture = () => {
+                if (this.audioContext && this.audioContext.state === 'suspended') {
+                    try { this.audioContext.resume(); } catch(e){/* ignore */ }
+                }
+                // 1度処理すればイベント不要
+                window.removeEventListener('pointerdown', resumeAudioOnUserGesture);
+                window.removeEventListener('touchstart', resumeAudioOnUserGesture);
+                window.removeEventListener('click', resumeAudioOnUserGesture);
+            };
+            window.addEventListener('pointerdown', resumeAudioOnUserGesture);
+            window.addEventListener('touchstart', resumeAudioOnUserGesture);
+            window.addEventListener('click', resumeAudioOnUserGesture);
         }
 
         openEditor() {
@@ -448,24 +518,51 @@ document.addEventListener('DOMContentLoaded', () => {
             if ('speechSynthesis' in window) {
                 speechSynthesis.cancel();
             }
+            // 読み上げを完全にオフにしたい（チェックボックスが外れている場合）なら keepAlive を止める
+            if (!this.els.speechToggle.checked) {
+                this.stopKeepAliveAudio();
+            }
         }
 
         togglePlay() {
             if (this.state.isPlaying) {
                 this.pause();
             } else {
+                // ユーザーが読み上げを有効にしているなら、AudioContext を作成・resumeしてからダミー発声で audio をアンロックしつつ keep-alive を開始
                 if (this.els.speechToggle.checked && !this.state.isAudioUnlocked) {
-                    speechSynthesis.cancel();
-                    const dummyUtterance = new SpeechSynthesisUtterance(' ');
-                    dummyUtterance.volume = 0;
-                    dummyUtterance.onend = () => {
-                        this.state.isAudioUnlocked = true;
-                        if (!this.state.isPlaying) { 
-                           this.play();
-                        }
-                    };
-                    speechSynthesis.speak(dummyUtterance);
+                    // AudioContext を作り、無音ループを開始（多くのブラウザはユーザー操作が必要）
+                    this.createKeepAliveAudio();
+                    if (this.audioContext && this.audioContext.state === 'suspended') {
+                        this.audioContext.resume().catch(()=>{/*ignore*/});
+                    }
+
+                    // 空の発声で音声システムのロックを解除し、解除後に再生を開始
+                    try {
+                        speechSynthesis.cancel();
+                        const dummyUtterance = new SpeechSynthesisUtterance(' ');
+                        dummyUtterance.volume = 0;
+                        dummyUtterance.onend = () => {
+                            this.state.isAudioUnlocked = true;
+                            // keep-alive は継続（無音ループ）しておく
+                            if (!this.state.isPlaying) {
+                               this.play();
+                            }
+                        };
+                        speechSynthesis.speak(dummyUtterance);
+                    } catch (err) {
+                        // 何か失敗した場合でも再生は試みる
+                        console.warn('dummy utterance error', err);
+                        this.play();
+                    }
                 } else {
+                    // 既に音声アンロック済み、または読み上げ無効なら通常再生
+                    // ただし、読み上げが有効であれば keep-alive を確保しておく
+                    if (this.els.speechToggle.checked) {
+                        this.createKeepAliveAudio();
+                        if (this.audioContext && this.audioContext.state === 'suspended') {
+                            this.audioContext.resume().catch(()=>{/*ignore*/});
+                        }
+                    }
                     this.play();
                 }
             }
@@ -507,7 +604,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (selectedVoice) { utterance.voice = selectedVoice; }
                 }
                 utterance.lang = 'ja-JP';
-                speechSynthesis.speak(utterance);
+                // 発声実行
+                try {
+                    speechSynthesis.speak(utterance);
+                } catch (err) {
+                    console.warn('speak error', err);
+                }
             }
         }
 
